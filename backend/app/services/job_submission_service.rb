@@ -150,8 +150,8 @@ class JobSubmissionService
       return false
     end
     
-    # Wait a moment for the copy to complete
-    sleep 1
+    # Wait for script file to appear in gstore (g-req may have NFS delay)
+    wait_for_gstore_file(@sushi_app.gstore_script_dir, max_wait: 30)
     
     Rails.logger.info("Successfully copied scratch to gstore")
     true
@@ -159,6 +159,20 @@ class JobSubmissionService
     @errors << "Error copying to gstore: #{e.message}"
     Rails.logger.error("Copy to gstore error: #{e.message}")
     false
+  end
+  
+  # Wait for files to appear in gstore directory (handles NFS cache delay)
+  def wait_for_gstore_file(gstore_dir, max_wait: 30)
+    start_time = Time.now
+    while (Time.now - start_time) < max_wait
+      if Dir.exist?(gstore_dir) && Dir.glob(File.join(gstore_dir, '*.sh')).any?
+        Rails.logger.info("Script file found in gstore after #{(Time.now - start_time).round(1)}s")
+        return true
+      end
+      sleep 1
+    end
+    Rails.logger.warn("Waited #{max_wait}s but script file not yet visible in gstore")
+    true # Continue anyway, file may appear soon
   end
 
   def create_parameters_tsv(script_path)
