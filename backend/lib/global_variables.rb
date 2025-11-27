@@ -108,9 +108,11 @@ module GlobalVariables
   end
 
   def get_columns_by_name(names)
-    (@dataset_hash||[{}]).map{|row|
+    result = (@dataset_hash||[{}]).map{|row|
       row.select { |k, v| names.any? { |name| k.gsub(/\[.+\]/,'').strip =~ /#{name}/ } }
     }
+    # Ensure we always return at least [{}] to avoid nil.keys errors
+    result.empty? ? [{}] : result
   end
 
   def extract_columns_by_name(names, sample_name: nil, strict: false)
@@ -165,9 +167,11 @@ module GlobalVariables
   end
 
   def get_columns_with_tag(type)
-    (@dataset_hash||[{}]).map{|row|
+    result = (@dataset_hash||[{}]).map{|row|
       row.select { |k, v| k =~ /\[#{type}\]/ }
     }
+    # Ensure we always return at least [{}] to avoid nil.keys errors
+    result.empty? ? [{}] : result
   end
 
   def extract_column(type, sample_name: nil, strict: false)
