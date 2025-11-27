@@ -273,6 +273,7 @@ module Api
       end
       
       # Get runnable applications by category (simplified format with app names only)
+      # Categories and applications are sorted alphabetically
       def runnable_applications_by_category(dataset)
         headers = dataset.headers
         
@@ -280,10 +281,16 @@ module Api
           .select { |app| app.required_columns_satisfied_by?(headers) }
           .group_by(&:analysis_category)
         
-        applications_by_category.map do |category, apps|
+        # Sort by category name alphabetically, with 'Misc' at the end
+        sorted_categories = applications_by_category.keys.compact.sort
+        sorted_categories << nil if applications_by_category.key?(nil) # nil category becomes 'Misc'
+        
+        sorted_categories.map do |category|
+          apps = applications_by_category[category]
           {
             category: category || 'Misc',
-            applications: apps.map { |app| app.class_name.sub(/App$/, '') }
+            # Sort application names alphabetically
+            applications: apps.map { |app| app.class_name.sub(/App$/, '') }.sort
           }
         end
       end
