@@ -55,16 +55,79 @@ The external job_manager expects specific files and formats.
 
 ### Overview
 For connecting to old SUSHI MySQL database that lacks email/password columns.
+This mode allows the new SUSHI frontend to work with the existing production database.
 
-### Activation
+### Usage
+
+Start the development server with legacy database mode:
 ```bash
-export LEGACY_DATABASE=true
+LEGACY_DATABASE=true bash start-dev.sh
 ```
 
+Or set the environment variable and run Rails directly:
+```bash
+cd backend
+export LEGACY_DATABASE=true
+bundle exec rails server
+```
+
+### Configuration
+
+1. **Configure database connection** in `backend/config/database.yml`:
+   ```yaml
+   development:
+     adapter: mysql2
+     pool: 10
+     username: sushilover
+     password: YOUR_PASSWORD
+     database: sushi
+     encoding: utf8
+     socket: /var/run/mysqld/mysqld.sock
+     reconnect: true
+   ```
+
+2. **Enable legacy mode** in `backend/config/authentication.yml`:
+   ```yaml
+   development:
+     legacy_database:
+       enabled: true
+   ```
+
 ### What It Does
-- Skips Devise `:validatable` module
+- Skips Devise `:validatable` module (old DB has no email/password columns)
 - Disables OAuth2, 2FA, wallet authentication features
-- Skips migration error checks
+- Skips pending migration checks (prevents `ActiveRecord::PendingMigrationError`)
+- Uses LDAP authentication only (if enabled)
+
+### Important Warnings
+
+⚠️ **DO NOT run migrations** on the legacy database:
+```bash
+# NEVER do this with LEGACY_DATABASE=true
+bundle exec rails db:migrate  # This will modify the production database!
+```
+
+⚠️ **The old database schema is read-only** from this application's perspective.
+Any schema changes should be done through the old SUSHI system.
+
+⚠️ **User authentication** is limited in legacy mode:
+- Standard email/password login is disabled
+- Only LDAP authentication works (if configured)
+- Anonymous access works if `skip_authentication: true` is set
+
+### Checking Database Connection
+
+Verify jobs are being registered:
+```bash
+cd backend
+LEGACY_DATABASE=true bundle exec rails runner "puts Job.count; Job.last(5).each { |j| p j.attributes }"
+```
+
+### Troubleshooting
+
+1. **PendingMigrationError**: Ensure `LEGACY_DATABASE=true` is set before starting the server
+2. **Connection refused**: Check MySQL socket path and credentials
+3. **Authentication errors**: Verify `authentication.yml` settings match legacy mode requirements
 
 ---
 
