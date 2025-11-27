@@ -118,11 +118,42 @@ class JobSubmissionService
     File.write(script_path, script_content)
     FileUtils.chmod(0755, script_path)
 
+    # Create parameters.tsv for job_manager
+    # job_manager looks for parameters.tsv in parent of parent directory of script_path
+    create_parameters_tsv(script_path)
+
     Rails.logger.info("Generated job script: #{script_path}")
     script_path
   rescue StandardError => e
     @errors << "Failed to generate job script: #{e.message}"
     nil
+  end
+
+  def create_parameters_tsv(script_path)
+    # job_manager expects parameters.tsv at: dirname(dirname(script_path))/parameters.tsv
+    parameters_dir = File.dirname(File.dirname(script_path))
+    parameters_file = File.join(parameters_dir, 'parameters.tsv')
+    
+    # Ensure directory exists
+    FileUtils.mkdir_p(parameters_dir)
+    
+    # Write parameters as TSV
+    CSV.open(parameters_file, 'w', col_sep: "\t") do |out|
+      @sushi_app.params.each do |key, value|
+        # Convert arrays to first value (user-selected value)
+        actual_value = value.is_a?(Array) ? value.first : value
+        out << [key, actual_value]
+      end
+      # Add additional required parameters
+      out << ['dataRoot', @sushi_app.gstore_dir]
+      out << ['resultDir', @sushi_app.result_dir]
+      out << ['sushi_app', @normalized_app_name]
+    end
+    
+    Rails.logger.info("Created parameters.tsv: #{parameters_file}")
+  rescue StandardError => e
+    Rails.logger.error("Failed to create parameters.tsv: #{e.message}")
+    # Don't fail the job submission if parameters.tsv creation fails
   end
 
   def create_output_dataset
