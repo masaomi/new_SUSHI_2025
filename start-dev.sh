@@ -28,6 +28,14 @@ else
   fi
 fi
 
+# Support for legacy database mode (old SUSHI MySQL DB)
+if [ -n "${LEGACY_DATABASE:-}" ]; then
+  export LEGACY_DATABASE
+  echo "🗄️  LEGACY_DATABASE=${LEGACY_DATABASE} (legacy SUSHI MySQL mode)"
+else
+  echo "🗄️  LEGACY_DATABASE is unset (using new schema)"
+fi
+
 # Positional args override env
 if [ "${1:-}" = "ENABLE_LDAP" ]; then
   [ -n "$2" ] && BACKEND_PORT="$2"
@@ -77,9 +85,9 @@ if [ "${ENABLE_LDAP:-0}" = "1" ]; then
 fi
 # Bind to 0.0.0.0 so it is reachable from remote browsers
 if [ "${ENABLE_LDAP:-0}" = "1" ]; then
-  BUNDLE_WITH=ldap RAILS_ENV=development bundle exec rails s -p $BACKEND_PORT -b 0.0.0.0 &
+  BUNDLE_WITH=ldap RAILS_ENV=development LEGACY_DATABASE="${LEGACY_DATABASE:-}" bundle exec rails s -p $BACKEND_PORT -b 0.0.0.0 &
 else
-  RAILS_ENV=development bundle exec rails s -p $BACKEND_PORT -b 0.0.0.0 &
+  RAILS_ENV=development LEGACY_DATABASE="${LEGACY_DATABASE:-}" bundle exec rails s -p $BACKEND_PORT -b 0.0.0.0 &
 fi
 BACKEND_PID=$!
 cd ..
