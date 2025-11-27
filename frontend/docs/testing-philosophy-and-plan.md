@@ -2,15 +2,30 @@
 
 ### Available Test Commands
 ```bash
-# Basic test running
-npm run test                # Run all tests once
-npm run test:watch          # Run tests in watch mode (re-runs on file changes)
-npm run test:coverage       # Run tests with coverage report
-npm run test:ci             # Run tests in CI mode (no watch, with coverage)
+# Basic test running  
+npm run test               # Run tests in interactive watch mode
+npm run test:run          # Run all tests once (single run)
+npm run test:watch        # Run tests in watch mode (re-runs on file changes)
+npm run test:coverage     # Run tests with coverage report
+npm run test:ui           # Run tests with visual UI interface
 ```
 
+### Configuration Files
+
+**`vitest.config.ts`** - Main Vitest configuration:
+- Native ESM support (no transform patterns needed)
+- Path aliases (`@/*` → `./`)
+- Coverage settings with v8 provider
+- happy-dom test environment for better performance
+
+**`vitest.setup.ts`** - Global test setup in project root:
+- Imports `@testing-library/jest-dom` matchers
+- Configures MSW server for API mocking
+- Mocks Next.js navigation hooks (`useRouter`, `useParams`, etc.)
+- Suppresses console noise during tests
+
 ### Test File Patterns
-Jest automatically discovers and runs files matching these patterns:
+Vitest automatically discovers and runs files matching these patterns:
 - `**/__tests__/**/*.{js,jsx,ts,tsx}`
 - `**/*.{test,spec}.{js,jsx,ts,tsx}`
 
@@ -35,9 +50,9 @@ Understanding how these technologies work together is crucial for effective test
 ├─────────────────────────────┤
 │ React Testing Library (RTL) │ ← Provides: getByText, render, fireEvent, user-event
 ├─────────────────────────────┤  
-│ jsdom                       │ ← Provides: document, window, DOM APIs, browser simulation
+│ happy-dom                   │ ← Provides: document, window, DOM APIs (faster than jsdom)
 ├─────────────────────────────┤
-│ Jest                        │ ← Provides: test runner, expect, mocks, coverage
+│ Vitest                      │ ← Provides: test runner, expect, mocks, coverage, native ESM
 ├─────────────────────────────┤
 │ Node.js                     │ ← Runtime environment where tests execute
 └─────────────────────────────┘
@@ -149,9 +164,11 @@ test('search filters datasets by name', async () => {
 
 The `mocks/` directory contains the MSW configuration that enables this request interception:
 
-- **`handlers.ts`** - Defines API endpoint responses (e.g., `GET /api/v1/projects/:id/datasets`) and contains the logic for filtering mock data based on request parameters
-- **`server.ts`** - Sets up MSW for the Node.js testing environment with Jest lifecycle hooks (`beforeAll`, `afterEach`, `afterAll`)
-- **`data/`** - Contains realistic mock data files (`datasets.ts`, `jobs.ts`) that handlers return, structured to match your actual API responses
+- **`handlers.ts`** - Defines API endpoint responses using `*/api/v1/...` patterns to match any hostname (e.g., `*/api/v1/projects/:id/datasets`). Contains filtering logic based on request parameters.
+- **`server.ts`** - Sets up MSW for Node.js testing environment with Vitest lifecycle hooks (`beforeAll`, `afterEach`, `afterAll`)
+- **`data/`** - Contains realistic mock data files (`datasets.ts`, `jobs.ts`) that handlers return, structured to match actual API responses
+
+**Handler URL Patterns:** Use `*/api/v1/...` instead of `/api/v1/...` because tests make requests to full URLs like `http://localhost:4000/api/v1/projects`, and the `*` wildcard matches any hostname/port combination.
 
 MSW intercepts HTTP requests made by your existing `/lib/api` client functions and routes them to these handlers, which return controlled mock responses without requiring any changes to your application code. MSW is only active during testing (`npm run test`) and does not affect your development or production environments.
 
@@ -197,12 +214,17 @@ This technology stack comprehensively covers all frontend testing needs:
 ## Implementation Roadmap
 
 ### Phase 1: Foundation (Week 1-2)
-- [ ] **Upgrade test infrastructure**
-  - Create shared test utilities
+- [x] **Modern test infrastructure migration**
+  - Migrated from Jest to Vitest for better ESM support
+  - Updated test configuration (`vitest.config.ts`, `vitest.setup.ts`)
+  - Native MSW integration without transform configurations
+  
+- [ ] **Enhanced testing utilities**
+  - Create shared test utilities and custom matchers
   - Set up visual regression testing (optional)
   
 - [ ] **Establish testing standards**
-  - Create testing style guide
+  - Create testing style guide and best practices
 
 ### Phase 2: Hook & Utility Testing (Week 2-3)
 - [ ] **Custom hooks** (High Value)

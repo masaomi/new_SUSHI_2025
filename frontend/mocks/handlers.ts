@@ -4,7 +4,7 @@ import { mockJobs, mockJobsResponse } from './data/jobs'
 
 export const handlers = [
   // GET /api/v1/projects - Get user projects
-  http.get('/api/v1/projects', () => {
+  http.get('*/api/v1/projects', () => {
     return HttpResponse.json({
       projects: mockProjects,
       current_user: 'alice'
@@ -12,7 +12,7 @@ export const handlers = [
   }),
 
   // GET /api/v1/projects/:projectId/datasets - Get project datasets with filtering
-  http.get('/api/v1/projects/:projectId/datasets', ({ request, params }) => {
+  http.get('*/api/v1/projects/:projectId/datasets', ({ request, params }) => {
     const url = new URL(request.url)
     const projectId = Number(params.projectId)
     
@@ -54,7 +54,7 @@ export const handlers = [
   }),
 
   // GET /api/v1/projects/:projectId/jobs - Get project jobs with filtering
-  http.get('/api/v1/projects/:projectId/jobs', ({ request, params }) => {
+  http.get('*/api/v1/projects/:projectId/jobs', ({ request, params }) => {
     const url = new URL(request.url)
     const projectId = Number(params.projectId)
     
@@ -103,7 +103,7 @@ export const handlers = [
   }),
 
   // GET /api/v1/projects/:projectId/datasets/:datasetId - Get single dataset
-  http.get('/api/v1/projects/:projectId/datasets/:datasetId', ({ params }) => {
+  http.get('*/api/v1/projects/:projectId/datasets/:datasetId', ({ params }) => {
     const datasetId = Number(params.datasetId)
     const dataset = mockDatasets.find(d => d.id === datasetId)
     

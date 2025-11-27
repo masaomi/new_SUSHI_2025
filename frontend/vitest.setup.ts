@@ -1,32 +1,31 @@
-// Jest setup file
-import '@testing-library/jest-dom';
+// Vitest setup file
+import '@testing-library/jest-dom'
+import { beforeAll, afterAll, afterEach, vi } from 'vitest'
 
 // Setup MSW server for all tests
-import './mocks/server';
+import './mocks/server'
 
 // Mock Next.js router
-jest.mock('next/navigation', () => ({
+vi.mock('next/navigation', () => ({
   useRouter: () => ({
-    push: jest.fn(),
-    replace: jest.fn(),
-    back: jest.fn(),
-    forward: jest.fn(),
-    refresh: jest.fn(),
-    prefetch: jest.fn(),
+    push: vi.fn(),
+    replace: vi.fn(),
+    back: vi.fn(),
+    forward: vi.fn(),
+    refresh: vi.fn(),
+    prefetch: vi.fn(),
   }),
   useSearchParams: () => ({
-    get: jest.fn(),
+    get: vi.fn(),
   }),
   usePathname: () => '/',
   // Provide a default empty useParams; tests can override per-file as needed
   useParams: () => ({}),
-}));
-
-// Note: No need to mock fetch globally anymore - MSW handles it
+}))
 
 // Mock console methods to reduce noise in tests
-const originalConsoleError = console.error;
-const originalConsoleWarn = console.warn;
+const originalConsoleError = console.error
+const originalConsoleWarn = console.warn
 
 beforeAll(() => {
   console.error = (...args) => {
@@ -37,18 +36,18 @@ beforeAll(() => {
        args[0].includes('act(...)') ||
        args[0].includes('Error: Error: Network error'))
     ) {
-      return;
+      return
     }
     // Suppress test-specific errors
     if (args[0] === 'Error:' && args[1] instanceof Error && args[1].message === 'Network error') {
-      return;
+      return
     }
     // Suppress errors from Error objects during testing
     if (args[0] instanceof Error && args[0].message === 'Network error') {
-      return;
+      return
     }
-    originalConsoleError(...args);
-  };
+    originalConsoleError(...args)
+  }
 
   console.warn = (...args) => {
     if (
@@ -56,18 +55,18 @@ beforeAll(() => {
       (args[0].includes('Warning:') ||
        args[0].includes('act(...)'))
     ) {
-      return;
+      return
     }
-    originalConsoleWarn(...args);
-  };
-});
+    originalConsoleWarn(...args)
+  }
+})
 
 afterAll(() => {
-  console.error = originalConsoleError;
-  console.warn = originalConsoleWarn;
-});
+  console.error = originalConsoleError
+  console.warn = originalConsoleWarn
+})
 
 // Clean up after each test
 afterEach(() => {
-  jest.clearAllMocks();
-}); 
+  vi.clearAllMocks()
+})
