@@ -40,7 +40,60 @@ module SushiConfigHelper
       partition_config['dynamic'] == true
     end
     
+    # Get storage configuration
+    def storage_config
+      if Rails.env.production?
+        sushi_type = ENV.fetch('SUSHI_TYPE', 'production')
+        type_config = config.dig('production', 'types', sushi_type, 'storage')
+        type_config || config.dig(Rails.env, 'storage') || default_storage_config
+      else
+        config.dig(Rails.env, 'storage') || default_storage_config
+      end
+    end
+    
+    # Get scratch directory path
+    def scratch_dir
+      storage_config['scratch_dir'] || '/scratch'
+    end
+    
+    # Get gstore directory path
+    def gstore_dir
+      storage_config['gstore_dir'] || '/srv/gstore/projects'
+    end
+    
+    # Get copy method (g-req or rsync)
+    def copy_method
+      storage_config['copy_method'] || 'g-req'
+    end
+    
+    # Generate copy command based on environment
+    def copy_command(src, dest, options = {})
+      case copy_method
+      when 'g-req'
+        if options[:force]
+          "g-req copynow -f #{src} #{dest}"
+        elsif options[:now]
+          "g-req copynow #{src} #{dest}"
+        elsif options[:queue] == 'heavy'
+          "g-req -w copy -f heavy #{src} #{dest}"
+        else
+          "g-req -w copy #{src} #{dest}"
+        end
+      else
+        # rsync for demo/local environments
+        "rsync -r #{src} #{dest}/"
+      end
+    end
+    
     private
+    
+    def default_storage_config
+      {
+        'scratch_dir' => '/scratch',
+        'gstore_dir' => '/srv/gstore/projects',
+        'copy_method' => 'g-req'
+      }
+    end
     
     def load_config
       config_path = Rails.root.join('config', 'sushi.yml')

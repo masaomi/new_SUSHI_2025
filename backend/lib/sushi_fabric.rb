@@ -14,7 +14,10 @@ module SushiFabric
                   :next_dataset_name, :next_dataset_comment, :current_user,
                   :result_dir, :gstore_dir, :scratch_dir, :job_script_dir,
                   :last_job, :input_dataset_tsv_path, :result_dataset,
-                  :dataset_tsv_file, :parameterset_tsv_file
+                  :dataset_tsv_file, :parameterset_tsv_file,
+                  :scratch_result_dir, :scratch_script_dir,
+                  :gstore_result_dir, :gstore_script_dir, :gstore_project_dir,
+                  :result_dir_base
     attr_reader :params
     
     def initialize
@@ -36,8 +39,8 @@ module SushiFabric
       @next_dataset_comment = nil
       @current_user = nil
       @result_dir = nil
-      @gstore_dir = Rails.application.config.gstore_dir
-      @scratch_dir = Rails.application.config.scratch_dir
+      @gstore_dir = SushiConfigHelper.gstore_dir
+      @scratch_dir = SushiConfigHelper.scratch_dir
       @job_script_dir = Rails.application.config.submit_job_script_dir
       @last_job = true
       @input_dataset_tsv_path = nil
@@ -63,18 +66,16 @@ module SushiFabric
       prepare_input_dataset_tsv(dataset_record)
     end
     
-    # Prepare input dataset TSV file in result directory (accessible from job nodes)
+    # Prepare input dataset TSV file in scratch directory
+    # The job script will copy this to gstore using g-req
     def prepare_input_dataset_tsv(dataset)
       return unless dataset
-      return unless @result_dir
+      return unless @scratch_result_dir
       
-      # Create result directory if needed (on shared storage like gstore)
-      FileUtils.mkdir_p(@result_dir)
+      # Write input dataset TSV to scratch directory (local, writable)
+      scratch_input_path = File.join(@scratch_result_dir, 'input_dataset.tsv')
       
-      # Write input dataset TSV to result directory (like old SUSHI)
-      @input_dataset_tsv_path = File.join(@result_dir, 'input_dataset.tsv')
-      
-      File.open(@input_dataset_tsv_path, 'w') do |f|
+      File.open(scratch_input_path, 'w') do |f|
         headers = dataset.headers
         f.puts headers.join("\t")
         dataset.samples.each do |sample|
@@ -83,7 +84,11 @@ module SushiFabric
         end
       end
       
-      Rails.logger.info("Created input dataset TSV: #{@input_dataset_tsv_path}")
+      # The path that R scripts will use (on gstore, after copy)
+      @input_dataset_tsv_path = File.join(@gstore_result_dir, 'input_dataset.tsv')
+      
+      Rails.logger.info("Created input dataset TSV in scratch: #{scratch_input_path}")
+      Rails.logger.info("Target gstore path for R scripts: #{@input_dataset_tsv_path}")
     end
     
     # Set default parameters - subclasses can override
@@ -159,7 +164,7 @@ module SushiFabric
       module_name
     end
     
-    # Prepare result directory path
+    # Prepare result directory paths (scratch and gstore)
     def prepare_result_dir
       return if @result_dir
       
@@ -167,12 +172,35 @@ module SushiFabric
       next_dataset_name = @next_dataset_name || "#{@name}_result"
       timestamp = Time.now.strftime('%Y-%m-%d--%H-%M-%S')
       
+      # Result directory base name
+      @result_dir_base = if @next_dataset_name
+                           "#{@next_dataset_name}_#{@dataset_sushi_id}_#{timestamp}"
+                         else
+                           "#{@name}_#{@dataset_sushi_id}_#{timestamp}"
+                         end
+      
+      # Scratch directory (local, writable)
+      @scratch_result_dir = File.join(SushiConfigHelper.scratch_dir, @result_dir_base)
+      @scratch_script_dir = File.join(@scratch_result_dir, 'scripts')
+      @job_script_dir = @scratch_script_dir  # Scripts are created in scratch
+      
+      # GStore directories (shared storage)
       if dataset && dataset.project
-        project_dir = File.join(@gstore_dir, 'projects', "p#{dataset.project.number}")
-        @result_dir = File.join(project_dir, "#{next_dataset_name}_#{timestamp}")
+        @gstore_project_dir = File.join(@gstore_dir, "p#{dataset.project.number}")
+        @result_dir = File.join(@gstore_project_dir, @result_dir_base)
       else
-        @result_dir = File.join(@gstore_dir, 'results', "#{next_dataset_name}_#{timestamp}")
+        @gstore_project_dir = File.join(@gstore_dir, 'results')
+        @result_dir = File.join(@gstore_project_dir, @result_dir_base)
       end
+      @gstore_result_dir = @result_dir
+      @gstore_script_dir = File.join(@gstore_result_dir, 'scripts')
+      
+      # Create scratch directory (local, writable)
+      FileUtils.mkdir_p(@scratch_result_dir)
+      FileUtils.mkdir_p(@scratch_script_dir)
+      
+      Rails.logger.info("Prepared scratch directory: #{@scratch_result_dir}")
+      Rails.logger.info("Target gstore directory: #{@gstore_result_dir}")
     end
     
     # Get next dataset definition - should be overridden in subclasses

@@ -27,11 +27,16 @@ class JobSubmissionService
     script_path = generate_job_script
     return false unless script_path
 
+    # Copy scratch files to gstore (input_dataset.tsv, parameters.tsv, scripts)
+    # This must happen BEFORE job execution so the job can access these files
+    return false unless copy_scratch_to_gstore
+
     # Create output dataset
     return false unless create_output_dataset
 
-    # Save job record
-    return false unless create_job_record(script_path)
+    # Save job record (with gstore script path)
+    gstore_script_path = File.join(@sushi_app.gstore_script_dir, File.basename(script_path))
+    return false unless create_job_record(gstore_script_path)
 
     true
   rescue StandardError => e
@@ -129,13 +134,37 @@ class JobSubmissionService
     nil
   end
 
+  # Copy scratch directory to gstore before job submission
+  # Uses g-req command for FGCZ environment (gstore is read-only)
+  def copy_scratch_to_gstore
+    src = @sushi_app.scratch_result_dir
+    dest = @sushi_app.gstore_project_dir
+    
+    copy_cmd = SushiConfigHelper.copy_command(src, dest, now: true)
+    Rails.logger.info("Copying scratch to gstore: #{copy_cmd}")
+    
+    success = system(copy_cmd)
+    unless success
+      @errors << "Failed to copy files from scratch to gstore: #{copy_cmd}"
+      Rails.logger.error("Copy command failed: #{copy_cmd}")
+      return false
+    end
+    
+    # Wait a moment for the copy to complete
+    sleep 1
+    
+    Rails.logger.info("Successfully copied scratch to gstore")
+    true
+  rescue StandardError => e
+    @errors << "Error copying to gstore: #{e.message}"
+    Rails.logger.error("Copy to gstore error: #{e.message}")
+    false
+  end
+
   def create_parameters_tsv(script_path)
     # job_manager expects parameters.tsv at: dirname(dirname(script_path))/parameters.tsv
-    parameters_dir = File.dirname(File.dirname(script_path))
-    parameters_file = File.join(parameters_dir, 'parameters.tsv')
-    
-    # Ensure directory exists
-    FileUtils.mkdir_p(parameters_dir)
+    # In scratch, this is scratch_result_dir/parameters.tsv
+    parameters_file = File.join(@sushi_app.scratch_result_dir, 'parameters.tsv')
     
     # Write parameters as TSV
     CSV.open(parameters_file, 'w', col_sep: "\t") do |out|
