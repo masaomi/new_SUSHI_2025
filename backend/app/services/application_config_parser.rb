@@ -97,8 +97,14 @@ class ApplicationConfigParser
         description: meta['description'] || meta[:description]
       }
       
+      # Special handling for partition field - get options from config/SLURM
+      if key.to_s == 'partition'
+        partitions = SushiConfigHelper.available_partitions
+        field[:type] = 'select'
+        field[:options] = partitions
+        field[:default_value] = SushiConfigHelper.default_partition
       # Add options for select fields
-      if value.is_a?(Array)
+      elsif value.is_a?(Array)
         field[:options] = value
       end
       

@@ -1,0 +1,55 @@
+# SUSHI Application Configuration
+# Configure SLURM partitions and other settings based on deployment type
+
+defaults: &defaults
+  # SLURM partition configuration
+  partition:
+    # Default partition to use
+    default: employee
+    # Available partitions (if empty, fetch dynamically from sinfo)
+    available: []
+    # Whether to fetch partitions dynamically from SLURM (sinfo command)
+    dynamic: true
+
+development:
+  <<: *defaults
+  # In development, always use 'employee' partition
+  partition:
+    default: employee
+    available: [employee]
+    dynamic: false
+
+test:
+  <<: *defaults
+  partition:
+    default: employee
+    available: [employee]
+    dynamic: false
+
+# Production deployment types
+# Set SUSHI_TYPE environment variable to select: production, demo, course, test_server
+production:
+  <<: *defaults
+  # Production type-specific settings (selected by SUSHI_TYPE env var)
+  types:
+    production:
+      partition:
+        default: employee
+        available: []  # empty = fetch dynamically from sinfo
+        dynamic: true
+    demo:
+      partition:
+        default: user
+        available: [user, employee]
+        dynamic: false
+    course:
+      partition:
+        default: course
+        available: [course]
+        dynamic: false
+    test_server:
+      partition:
+        default: employee
+        available: [employee, user]
+        dynamic: false
+

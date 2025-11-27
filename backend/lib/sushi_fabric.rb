@@ -87,7 +87,10 @@ module SushiFabric
     
     # Set default parameters - subclasses can override
     def set_default_parameters
-      # Default implementation - can be overridden in subclasses
+      # Set partition from config if not already set
+      if @params['partition'].to_s.empty?
+        @params['partition'] = SushiConfigHelper.default_partition
+      end
     end
     
     # Check if dataset has a specific column
