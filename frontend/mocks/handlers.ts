@@ -2,9 +2,12 @@ import { http, HttpResponse } from 'msw'
 import { mockDatasets, mockProjects, mockDatasetsResponse } from './data/datasets'
 import { mockJobs, mockJobsResponse } from './data/jobs'
 
+// Base URL for MSW handlers - matches test environment
+const API_BASE = 'http://localhost:4000'
+
 export const handlers = [
   // GET /api/v1/projects - Get user projects
-  http.get('/api/v1/projects', () => {
+  http.get(`${API_BASE}/api/v1/projects`, () => {
     return HttpResponse.json({
       projects: mockProjects,
       current_user: 'alice'
@@ -12,7 +15,7 @@ export const handlers = [
   }),
 
   // GET /api/v1/projects/:projectId/datasets - Get project datasets with filtering
-  http.get('/api/v1/projects/:projectId/datasets', ({ request, params }) => {
+  http.get(`${API_BASE}/api/v1/projects/:projectId/datasets`, ({ request, params }) => {
     const url = new URL(request.url)
     const projectId = Number(params.projectId)
     
@@ -54,7 +57,7 @@ export const handlers = [
   }),
 
   // GET /api/v1/projects/:projectId/jobs - Get project jobs with filtering
-  http.get('/api/v1/projects/:projectId/jobs', ({ request, params }) => {
+  http.get(`${API_BASE}/api/v1/projects/:projectId/jobs`, ({ request, params }) => {
     const url = new URL(request.url)
     const projectId = Number(params.projectId)
     
@@ -103,7 +106,7 @@ export const handlers = [
   }),
 
   // GET /api/v1/projects/:projectId/datasets/:datasetId - Get single dataset
-  http.get('/api/v1/projects/:projectId/datasets/:datasetId', ({ params }) => {
+  http.get(`${API_BASE}/api/v1/projects/:projectId/datasets/:datasetId`, ({ params }) => {
     const datasetId = Number(params.datasetId)
     const dataset = mockDatasets.find(d => d.id === datasetId)
     
@@ -117,11 +120,11 @@ export const handlers = [
   // Error simulation handlers (useful for testing error states)
   // Uncomment these to test error handling
   /*
-  http.get('/api/v1/projects/9999/datasets', () => {
+  http.get(`${API_BASE}/api/v1/projects/9999/datasets`, () => {
     return new HttpResponse(null, { status: 500 })
   }),
 
-  http.get('/api/v1/projects/timeout/datasets', async () => {
+  http.get(`${API_BASE}/api/v1/projects/timeout/datasets`, async () => {
     // Simulate slow response
     await new Promise(resolve => setTimeout(resolve, 5000))
     return HttpResponse.json(mockDatasetsResponse)
