@@ -146,12 +146,18 @@ module SushiFabric
       end
       script << ""
       
-      # Cleanup
+      # Copy results to gstore and cleanup
       script << ""
       script << "#### JOB IS DONE WE PUT THINGS IN PLACE AND CLEAN UP"
-      script << "g-req -w copy . #{@result_dir}"
+      # Copy all result files to gstore (directory already exists from pre-submission copy)
+      # Use individual file/subdir copy to avoid "destination exists" error
+      script << "for f in *; do"
+      script << "  if [ -e \"$f\" ]; then"
+      script << "    #{SushiConfigHelper.copy_command('\"$f\"', @gstore_result_dir)}"
+      script << "  fi"
+      script << "done"
       script << "cd #{@scratch_dir}"
-      script << "rm -rf #{@scratch_dir}/#{temp_dir_name} || exit 1"
+      script << "rm -rf #{temp_dir_name} || exit 1"
       script << ""
       
       script.join("\n")
