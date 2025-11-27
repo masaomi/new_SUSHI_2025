@@ -50,7 +50,9 @@ class JobSubmissionService
     end
 
     # Check if app file exists
-    app_file = Rails.root.join('lib', 'apps', "#{@app_name}.rb")
+    # Normalize app_name: add "App" suffix if not present
+    @normalized_app_name = @app_name.end_with?('App') ? @app_name : "#{@app_name}App"
+    app_file = Rails.root.join('lib', 'apps', "#{@normalized_app_name}.rb")
     unless File.exist?(app_file)
       @errors << "Application not found: #{@app_name}"
       return false
@@ -60,15 +62,15 @@ class JobSubmissionService
   end
 
   def load_sushi_app
-    # Require the app file
-    app_file = Rails.root.join('lib', 'apps', "#{@app_name}.rb")
+    # Require the app file (use normalized name with App suffix)
+    app_file = Rails.root.join('lib', 'apps', "#{@normalized_app_name}.rb")
     require app_file
 
-    # Instantiate the app
-    @sushi_app = Object.const_get(@app_name).new
+    # Instantiate the app (use normalized class name)
+    @sushi_app = Object.const_get(@normalized_app_name).new
     true
   rescue NameError => e
-    @errors << "Failed to load application class: #{@app_name} - #{e.message}"
+    @errors << "Failed to load application class: #{@normalized_app_name} - #{e.message}"
     false
   rescue StandardError => e
     @errors << "Error loading application: #{e.message}"

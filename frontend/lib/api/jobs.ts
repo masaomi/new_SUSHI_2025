@@ -5,24 +5,21 @@ export const jobApi = {
   async submitJob(
     jobData: JobSubmissionRequest,
   ): Promise<JobSubmissionResponse> {
-    // Mock implementation - replace with actual API call when backend is ready
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          id: Math.floor(Math.random() * 10000),
-          status: "submitted",
-          created_at: new Date().toISOString(),
-          message: `MOCK RESPONSE`,
-        });
-        // throw new Error("I'm THROWING");
-      }, 2000);
-    });
+    // Transform frontend request format to backend expected format
+    const backendPayload = {
+      job: {
+        dataset_id: jobData.dataset_id,
+        app_name: jobData.app_name,
+        next_dataset_name: jobData.next_dataset?.name,
+        next_dataset_comment: jobData.next_dataset?.comment,
+        parameters: jobData.parameters,
+      }
+    };
 
-    // Future implementation when backend is ready:
-    // return httpClient.request<JobSubmissionResponse>('/api/v1/jobs', {
-    //   method: 'POST',
-    //   body: JSON.stringify(jobData),
-    // });
+    return httpClient.request<JobSubmissionResponse>('/api/v1/jobs', {
+      method: 'POST',
+      body: JSON.stringify(backendPayload),
+    });
   },
 
   async getJobsList(

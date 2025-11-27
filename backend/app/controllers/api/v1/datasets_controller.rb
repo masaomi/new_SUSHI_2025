@@ -283,7 +283,7 @@ module Api
         applications_by_category.map do |category, apps|
           {
             category: category || 'Misc',
-            applications: apps.map(&:class_name)
+            applications: apps.map { |app| app.class_name.sub(/App$/, '') }
           }
         end
       end

@@ -34,13 +34,17 @@ class ApplicationConfigParser
     def find_app_file(app_name)
       # Sanitize app_name to prevent directory traversal
       sanitized_name = app_name.gsub(/[^a-zA-Z0-9_]/, '')
-      app_file = APPS_DIR.join("#{sanitized_name}App.rb")
+      
+      # Remove trailing "App" suffix if present (to handle both "Fastqc" and "FastqcApp")
+      base_name = sanitized_name.sub(/App$/, '')
+      
+      app_file = APPS_DIR.join("#{base_name}App.rb")
       
       return app_file if File.exist?(app_file)
       
       # Try case-insensitive search
       Dir.glob(APPS_DIR.join('*App.rb')).find do |file|
-        File.basename(file, 'App.rb').downcase == sanitized_name.downcase
+        File.basename(file, 'App.rb').downcase == base_name.downcase
       end
     end
     
