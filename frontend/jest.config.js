@@ -32,6 +32,11 @@ const config = {
     '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }]
   },
   
+  // Transform node_modules that use ES modules  
+  transformIgnorePatterns: [
+    'node_modules/(?!(msw|@bundled-es-modules)/)'
+  ],
+  
   // Coverage settings
   collectCoverageFrom: [
     'app/**/*.{js,jsx,ts,tsx}',
@@ -68,4 +73,4 @@ const config = {
   verbose: true
 };
 
-module.exports = config; 
+export default config; 
