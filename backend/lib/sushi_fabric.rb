@@ -48,14 +48,19 @@ module SushiFabric
     def set_input_dataset
       return unless @dataset_sushi_id
       
-      dataset = DataSet.find_by_id(@dataset_sushi_id)
-      return unless dataset
+      dataset_record = DataSet.find_by_id(@dataset_sushi_id)
+      return unless dataset_record
       
-      @dataset_hash = dataset.samples.map { |sample| sample.to_hash }
-      @dataset = @dataset_hash.first if @dataset_hash.any?
+      @dataset_hash = dataset_record.samples.map { |sample| sample.to_hash }
+      # For DATASET mode, @dataset is the full array; for SAMPLE mode it's a single hash
+      if @params['process_mode'] == 'SAMPLE'
+        @dataset = @dataset_hash.first if @dataset_hash.any?
+      else
+        @dataset = @dataset_hash
+      end
       
       # Create input dataset TSV file for R apps
-      prepare_input_dataset_tsv(dataset)
+      prepare_input_dataset_tsv(dataset_record)
     end
     
     # Prepare input dataset TSV file
