@@ -1,15 +1,20 @@
-# Minimal SushiFabric stub for parsing SUSHI App files
-# This stub provides the minimum necessary classes and methods
-# to load and instantiate SUSHI App classes without requiring
-# the full sushi_fabric gem infrastructure
+# SushiFabric - SUSHI Application Framework
+# Provides classes and methods to load and run SUSHI App classes
+# Compatible with old SUSHI system
+
+require_relative 'global_variables'
 
 module SushiFabric
   class SushiApp
+    include GlobalVariables
+    
     attr_accessor :name, :analysis_category, :description, :required_columns, 
                   :required_params, :modules, :inherit_tags, :inherit_columns,
                   :dataset_sushi_id, :dataset, :dataset_hash, :project, :user,
                   :next_dataset_name, :next_dataset_comment, :current_user,
-                  :result_dir, :gstore_dir, :scratch_dir, :job_script_dir
+                  :result_dir, :gstore_dir, :scratch_dir, :job_script_dir,
+                  :last_job, :input_dataset_tsv_path, :result_dataset,
+                  :dataset_tsv_file, :parameterset_tsv_file
     attr_reader :params
     
     def initialize
@@ -34,6 +39,9 @@ module SushiFabric
       @gstore_dir = Rails.application.config.gstore_dir
       @scratch_dir = Rails.application.config.scratch_dir
       @job_script_dir = Rails.application.config.submit_job_script_dir
+      @last_job = true
+      @input_dataset_tsv_path = nil
+      @result_dataset = []
     end
     
     # Set input dataset from database
@@ -45,6 +53,31 @@ module SushiFabric
       
       @dataset_hash = dataset.samples.map { |sample| sample.to_hash }
       @dataset = @dataset_hash.first if @dataset_hash.any?
+      
+      # Create input dataset TSV file for R apps
+      prepare_input_dataset_tsv(dataset)
+    end
+    
+    # Prepare input dataset TSV file
+    def prepare_input_dataset_tsv(dataset)
+      return unless dataset
+      
+      # Create temp directory if needed
+      temp_dir = File.join(Rails.root, 'tmp', 'input_datasets')
+      FileUtils.mkdir_p(temp_dir)
+      
+      # Write input dataset TSV
+      timestamp = Time.now.strftime("%Y%m%d%H%M%S")
+      @input_dataset_tsv_path = File.join(temp_dir, "input_dataset_#{@dataset_sushi_id}_#{timestamp}.tsv")
+      
+      File.open(@input_dataset_tsv_path, 'w') do |f|
+        headers = dataset.headers
+        f.puts headers.join("\t")
+        dataset.samples.each do |sample|
+          row = headers.map { |h| sample.to_hash[h] }
+          f.puts row.join("\t")
+        end
+      end
     end
     
     # Set default parameters - subclasses can override
@@ -58,75 +91,63 @@ module SushiFabric
       @dataset_hash.first.keys.any? { |key| key.gsub(/\[.+\]/, '').strip == column_name }
     end
     
-    # Extract columns from dataset
-    def extract_columns(options = {})
-      return {} unless @dataset_hash && @dataset_hash.any?
-      
-      if colnames = options[:colnames]
-        result = {}
-        colnames.each do |colname|
-          @dataset_hash.first.each do |key, value|
-            if key.gsub(/\[.+\]/, '').strip == colname
-              result[key] = value
-            end
-          end
-        end
-        result
-      else
-        {}
-      end
-    end
-    
     # Generate job script content
     def generate_job_script
       script = []
       script << "#!/bin/bash"
-      script << "set -e"
+      script << ""
+      script << "set -eux"
       script << "set -o pipefail"
-      script << ""
-      script << "# Job: #{@name}"
-      script << "# Dataset: #{@dataset_sushi_id}"
-      script << "# User: #{@user}"
-      script << "# Project: #{@project}"
+      script << "umask 0002"
       script << ""
       
-      # Load modules if specified
-      if @modules && !@modules.empty?
-        script << "# Load modules"
-        @modules.each do |mod|
-          script << "module load #{mod}"
-        end
-        script << ""
-      end
-      
-      # Set directories
-      script << "# Directories"
+      # Stage setup
+      script << "#### SET THE STAGE"
+      temp_dir_name = "#{@name.downcase}_#{Time.now.strftime('%Y-%m-%d--%H-%M-%S')}_temp$$"
+      script << "SCRATCH_DIR=#{@scratch_dir}/#{temp_dir_name}"
       script << "GSTORE_DIR=#{@gstore_dir}"
-      script << "RESULT_DIR=#{@result_dir}"
-      script << "SCRATCH_DIR=#{@scratch_dir}"
+      script << "INPUT_DATASET=#{@input_dataset_tsv_path}"
+      script << "LAST_JOB=#{@last_job.to_s.upcase}"
+      script << 'echo "Job runs on `hostname`"'
+      script << 'echo "at $SCRATCH_DIR"'
+      script << 'mkdir $SCRATCH_DIR || exit 1'
+      script << 'cd $SCRATCH_DIR || exit 1'
+      
+      # Load modules
+      if @modules && !@modules.empty?
+        script << "source /usr/local/ngseq/etc/lmod_profile"
+        module_versions = @modules.map { |m| find_module_version(m) }.join(' ')
+        script << "module add #{module_versions}"
+      end
       script << ""
       
-      # Application-specific commands
-      script << "# Application commands"
+      # Application commands
+      script << "#### NOW THE ACTUAL JOBS STARTS"
       if respond_to?(:commands)
         script << commands
       else
-        script << "echo 'No commands defined'"
+        # Default: use run_RApp for R-based apps
+        r_app_name = "EzApp#{@name.gsub(/App$/, '')}"
+        script << run_RApp(r_app_name)
       end
-      
       script << ""
-      script << "echo 'Job completed'"
+      
+      # Cleanup
+      script << ""
+      script << "#### JOB IS DONE WE PUT THINGS IN PLACE AND CLEAN UP"
+      script << "g-req -w copy . #{@result_dir}"
+      script << "cd #{@scratch_dir}"
+      script << "rm -rf #{@scratch_dir}/#{temp_dir_name} || exit 1"
+      script << ""
       
       script.join("\n")
     end
     
-    # Stub methods that apps may call
-    def run_RApp(app_name)
-      "R --vanilla --slave << EOT\nEOT"
-    end
-    
-    def run_PyApp(app_name, options = {})
-      "python3 << EOT\nEOT"
+    # Find module version (look for latest available)
+    def find_module_version(module_name)
+      # For now, just return the module name as-is
+      # In production, this would look up the actual available version
+      module_name
     end
     
     # Prepare result directory path
@@ -135,19 +156,24 @@ module SushiFabric
       
       dataset = DataSet.find_by_id(@dataset_sushi_id) if @dataset_sushi_id
       next_dataset_name = @next_dataset_name || "#{@name}_result"
+      timestamp = Time.now.strftime('%Y-%m-%d--%H-%M-%S')
       
       if dataset && dataset.project
         project_dir = File.join(@gstore_dir, 'projects', "p#{dataset.project.number}")
-        @result_dir = File.join(project_dir, next_dataset_name)
+        @result_dir = File.join(project_dir, "#{next_dataset_name}_#{timestamp}")
       else
-        @result_dir = File.join(@gstore_dir, 'results', next_dataset_name)
+        @result_dir = File.join(@gstore_dir, 'results', "#{next_dataset_name}_#{timestamp}")
       end
     end
     
-    # Get next dataset definition
+    # Get next dataset definition - should be overridden in subclasses
     def next_dataset
-      # Default implementation - should be overridden in subclasses
       { 'Name' => @next_dataset_name || "#{@name}_result" }
+    end
+    
+    # Get grandchild datasets - should be overridden in subclasses if needed
+    def grandchild_datasets
+      []
     end
   end
   
@@ -161,7 +187,6 @@ module SushiFabric
     def []=(*args)
       if args.size == 3
         # Handle metadata like @params['ram', 'description'] = "GB"
-        # This comes in as ['ram', 'description', 'GB']
         param_name, meta_key, value = args
         @metadata[param_name] ||= {}
         @metadata[param_name][meta_key] = value
@@ -186,6 +211,10 @@ module SushiFabric
       @params.keys
     end
     
+    def key?(key)
+      @params.key?(key)
+    end
+    
     def to_h
       @params.dup
     end
@@ -199,4 +228,3 @@ module SushiFabric
     end
   end
 end
-
