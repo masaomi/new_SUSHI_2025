@@ -86,7 +86,10 @@ class JobSubmissionService
     @sushi_app.next_dataset_name = @next_dataset_name || "#{@sushi_app.name}_#{@dataset_id}"
     @sushi_app.next_dataset_comment = @next_dataset_comment
 
-    # Load input dataset
+    # Prepare result directory FIRST (needed for input dataset TSV path)
+    @sushi_app.prepare_result_dir
+
+    # Load input dataset (creates TSV in result_dir for job nodes to access)
     @sushi_app.set_input_dataset
 
     # Set default parameters first
@@ -97,9 +100,6 @@ class JobSubmissionService
     normalized_params.each do |key, value|
       @sushi_app.params[key] = value
     end
-
-    # Prepare result directory
-    @sushi_app.prepare_result_dir
   end
 
   def generate_job_script

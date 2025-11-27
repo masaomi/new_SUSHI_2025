@@ -63,17 +63,16 @@ module SushiFabric
       prepare_input_dataset_tsv(dataset_record)
     end
     
-    # Prepare input dataset TSV file
+    # Prepare input dataset TSV file in result directory (accessible from job nodes)
     def prepare_input_dataset_tsv(dataset)
       return unless dataset
+      return unless @result_dir
       
-      # Create temp directory if needed
-      temp_dir = File.join(Rails.root, 'tmp', 'input_datasets')
-      FileUtils.mkdir_p(temp_dir)
+      # Create result directory if needed (on shared storage like gstore)
+      FileUtils.mkdir_p(@result_dir)
       
-      # Write input dataset TSV
-      timestamp = Time.now.strftime("%Y%m%d%H%M%S")
-      @input_dataset_tsv_path = File.join(temp_dir, "input_dataset_#{@dataset_sushi_id}_#{timestamp}.tsv")
+      # Write input dataset TSV to result directory (like old SUSHI)
+      @input_dataset_tsv_path = File.join(@result_dir, 'input_dataset.tsv')
       
       File.open(@input_dataset_tsv_path, 'w') do |f|
         headers = dataset.headers
@@ -83,6 +82,8 @@ module SushiFabric
           f.puts row.join("\t")
         end
       end
+      
+      Rails.logger.info("Created input dataset TSV: #{@input_dataset_tsv_path}")
     end
     
     # Set default parameters - subclasses can override
