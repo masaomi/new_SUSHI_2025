@@ -35,7 +35,8 @@ class ApplicationConfigParser
       # Sanitize app_name to prevent directory traversal
       sanitized_name = app_name.gsub(/[^a-zA-Z0-9_]/, '')
       
-      # Remove trailing "App" suffix if present (to handle both "Fastqc" and "FastqcApp")
+      # Remove 'App' suffix if present (e.g., 'FastqcApp' -> 'Fastqc')
+      # This handles both 'Fastqc' and 'FastqcApp' as input
       base_name = sanitized_name.sub(/App$/, '')
       
       app_file = APPS_DIR.join("#{base_name}App.rb")
