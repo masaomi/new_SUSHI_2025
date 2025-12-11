@@ -44,7 +44,7 @@ export default function DocsLayout({
         </div>
       </header>
 
-      <div className="container mx-auto px-6 py-8">
+      <div className="container px-6 py-8">
         <div className={`flex ${sidebarOpen ? 'gap-8' : 'gap-0'}`}>
           {/* Collapsible Sidebar Navigation */}
           {sidebarOpen && (
@@ -70,10 +70,18 @@ export default function DocsLayout({
                   </li>
                   <li>
                     <Link 
+                      href="/docs/testing" 
+                      className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+                    >
+                      Testing
+                    </Link>
+                  </li>
+                  <li>
+                    <Link 
                       href="/docs/jstree" 
                       className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
                     >
-                      jsTree Integration
+                      jsTree Integration 
                     </Link>
                   </li>
                   <li>
@@ -81,7 +89,7 @@ export default function DocsLayout({
                       href="/docs/loading-patterns" 
                       className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
                     >
-                      Loading Patterns
+                      Loading Patterns (Outdated)
                     </Link>
                   </li>
                   <li>
@@ -110,10 +118,10 @@ export default function DocsLayout({
                   </li>
                   <li>
                     <Link 
-                      href="/docs/table-editing" 
+                      href="/docs/handsontable" 
                       className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
                     >
-                      Table Editing System
+                      Hands on Table Integration
                     </Link>
                   </li>
                   <li>
@@ -126,42 +134,10 @@ export default function DocsLayout({
                   </li>
                   <li>
                     <Link 
-                      href="/docs/test-strategy" 
-                      className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
-                    >
-                      Test Strategy
-                    </Link>
-                  </li>
-                  <li>
-                    <Link 
-                      href="/docs/test-layers" 
-                      className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
-                    >
-                      Test Layers
-                    </Link>
-                  </li>
-                  <li>
-                    <Link 
-                      href="/docs/backend-api" 
-                      className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
-                    >
-                      Backend API Endpoints
-                    </Link>
-                  </li>
-                  <li>
-                    <Link 
                       href="/docs/multiple-ui-triggers" 
                       className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
                     >
                       Multiple UI Triggers
-                    </Link>
-                  </li>
-                  <li>
-                    <Link 
-                      href="/docs/props-immutability" 
-                      className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
-                    >
-                      Props Immutability
                     </Link>
                   </li>
                   <li>

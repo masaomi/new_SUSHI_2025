@@ -1,5 +1,5 @@
 import { httpClient } from "./client";
-import { JobsListResponse, JobSubmissionRequest, JobSubmissionResponse } from "../types/job";
+import { JobFullResponse, JobListResponse, JobSubmissionRequest, JobSubmissionResponse } from "../types/job";
 
 export const jobApi = {
   async submitJob(
@@ -25,11 +25,35 @@ export const jobApi = {
     // });
   },
 
-  async getJobsList(
-    projectId: number, 
-    params: { datasetName?: string; user?: string; status?: string } = {}
-  ): Promise<JobsListResponse> {
-    return httpClient.request<JobsListResponse>(`/api/v1/projects/${projectId}/jobs`);
+  async getJob(
+    jobId: number
+  ): Promise<JobFullResponse>{
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve({
+          id: jobId,
+          status: "completed",
+          user: "mockuser",
+          input_dataset_id: 1,
+          next_dataset_id: 2,
+          created_at: new Date().toISOString(),
+          script_path: "/mock/script/path",
+          submit_job_id: 123,
+          start_time: new Date().toISOString(),
+          end_time: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+        // throw new Error("I'm THROWING");
+      }, 2000);
+    });
+  },
+
+  async getAllJobs(
+    params: { datasetName?: string; user?: string; page?: number; per?: number } = {}
+  ): Promise<JobListResponse> {
+    const queryString = httpClient.buildQueryString(params);
+    const endpoint = `/api/v1/jobs${queryString ? `?${queryString}` : ''}`;
+    return httpClient.request<JobListResponse>(endpoint);
   }
 };
 

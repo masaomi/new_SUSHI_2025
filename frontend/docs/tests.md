@@ -1,80 +1,5 @@
 # Testing Strategy Overview
 
-## Testing Stack
-
-This project uses **Vitest** as the modern testing framework, replacing Jest for better ESM support and performance. The testing infrastructure includes:
-
-- **Vitest** - Fast test runner with native ES modules support
-- **@testing-library/react** - Component testing utilities
-- **MSW (Mock Service Worker)** - API mocking for tests
-- **happy-dom** - Lightweight DOM implementation (faster than jsdom)
-
-## Configuration Files
-
-### `vitest.config.ts`
-Main Vitest configuration with ESM support, aliases, and coverage settings. No complex transform patterns needed unlike Jest.
-
-### `vitest.setup.ts`
-Global test setup file in the project root that:
-- Imports `@testing-library/jest-dom` for DOM matchers
-- Configures MSW server for API mocking
-- Mocks Next.js navigation hooks
-- Suppresses console noise during tests
-
-### MSW Handler Patterns (`mocks/handlers.ts`)
-API handlers use `*/api/v1/...` patterns instead of `/api/v1/...` because:
-- Tests hit full URLs like `http://localhost:4000/api/v1/projects`
-- The `*` wildcard matches any hostname/port combination
-- This handles both development (`localhost:4000`) and test environments
-- Provides flexibility without hardcoding specific hostnames
-
-## Testing Layers
-
-### API Layer Testing (`lib/api/*.test.ts`)
-
-Tests validate raw HTTP client functions that handle:
-- URL construction with correct parameters  
-- HTTP method selection (GET, POST, PUT, DELETE)
-- Request body formatting
-- Response parsing and error handling
-- Network failure scenarios
-
-**Benefits of Vitest here:**
-- Native ESM imports work without configuration
-- MSW integration is seamless without transform rules
-- Faster test execution for API validation
-
-### Hook Layer Testing (`lib/hooks/**/*.test.ts`)
-
-Tests validate React Query integration covering:
-- Loading and error state management
-- Data caching and invalidation  
-- Query refetching when dependencies change
-- Hook lifecycle and React integration
-- Disabled query handling
-
-### Integration Layer (`app/**/*.test.tsx`)
-
-Tests validate complete user workflows:
-- Multi-component interactions
-- URL parameter synchronization  
-- Real-time data updates and user feedback
-- Complete user workflows (search → filter → paginate)
-
-## Why Vitest Over Jest
-
-### Technical Advantages
-- **Native ESM support** - No `transformIgnorePatterns` configuration needed
-- **Better MSW integration** - ES modules work out of the box
-- **Faster execution** - Tests run ~3x faster than Jest
-- **Modern tooling** - Built for current JavaScript ecosystem
-
-### Developer Experience  
-- **Clearer error messages** - Better debugging information
-- **Hot reload testing** - Watch mode with better performance
-- **TypeScript native** - No additional configuration required
-- **Vite ecosystem** - Consistent with modern build tools
-
 ## Running Tests
 
 ```bash
@@ -84,12 +9,77 @@ npm run test:coverage # Coverage report
 npm run test:ui      # Visual test interface
 ```
 
-## Mock Strategy
+## Testing Stack
+- **Vitest** 
+- **@testing-library/react** 
+- **MSW (Mock Service Worker)** 
+- **happy-dom**
+```
+┌─────────────────────────────┐
+│    Your Test Code           │ ← You write: getByText('hello'), expect().toBe()
+├─────────────────────────────┤
+│ React Testing Library (RTL) │ ← Provides: getByText, render, fireEvent, user-event
+├─────────────────────────────┤  
+│ happy-dom                   │ ← Provides: document, window, DOM APIs (faster than jsdom)
+├─────────────────────────────┤
+│ Vitest                      │ ← Provides: test runner, expect, mocks, coverage, native ESM
+├─────────────────────────────┤
+│ Node.js                     │ ← Runtime environment where tests execute
+└─────────────────────────────┘
+```
 
-MSW (Mock Service Worker) handles all API mocking:
-- **Realistic network simulation** - Tests actual fetch calls
-- **Shared mocks** - Same handlers work across all test types  
-- **Request inspection** - Can capture and validate request details
-- **Error simulation** - Easy to test failure scenarios
 
-The `*/api/v1/*` pattern ensures mocks work regardless of the actual API hostname used during testing.
+### Test File Patterns
+Vitest automatically discovers and runs files matching these patterns:
+- `**/__tests__/**/*.{js,jsx,ts,tsx}`
+- `**/*.{test,spec}.{js,jsx,ts,tsx}`
+
+### Test File Organization
+We use **co-located testing** where test files live next to the code they test (e.g., `useSearch.ts` and `useSearch.test.ts` in the same directory). This approach makes tests easy to find and maintain alongside the implementation.
+
+Specialized testing:
+- **Basic tests**: `page.test.tsx`
+- **Specialized tests**: `page.accessibility.test.tsx`
+- **Mock variations**: `datasets.error-state.test.ts` (uses custom MSW handlers to simulate API errors)
+
+## renderWithQuery 
+`useQuery` needs to be mocked.
+The wrapper creates a fresh React Query client configured for testing 
+
+```typescript
+test('dataset page loads data', () => {
+  render(<DatasetPage />)  // Error: useQuery must be used within QueryClientProvider
+  renderWithQuery(<DatasetPage />)  // Component can safely use useQuery hooks
+})
+```
+
+## MSW (Mock Service Worker) Data Flow
+
+MSW intercepts HTTP requests at the network layer, creating the illusion of a real API without actually running a server.
+MSW sits between your application code and the actual network, capturing real HTTP requests and routing them to handler functions that return mock responses. 
+
+### MSW Files Structure
+
+The `mocks/` directory contains the MSW configuration that enables this request interception:
+
+- **`handlers.ts`** - Defines API endpoint responses using `*/api/v1/...` patterns to match any hostname (e.g., `*/api/v1/projects/:id/datasets`). Contains filtering logic based on request parameters.
+- **`server.ts`** - Sets up MSW for Node.js testing environment with Vitest lifecycle hooks (`beforeAll`, `afterEach`, `afterAll`)
+- **`data/`** - Contains realistic mock data files (`datasets.ts`, `jobs.ts`) that handlers return, structured to match actual API responses
+
+MSW is only active during testing (`npm run test`) and does not affect your development or production environments.
+
+### MSW Handler Patterns (`mocks/handlers.ts`)
+API handlers use `*/api/v1/...` patterns
+- Tests hit full URLs like `http://localhost:4000/api/v1/projects`
+- The `*` wildcard matches any hostname/port combination
+- This handles both development (`localhost:4000`) and test environments
+
+## Implementation List
+- visual regression 
+- shared utilities 
+- hooks 
+- api layer
+- core components (search, pagination, sorting/filtering)
+- page components
+- accessibility testing 
+- performance testing

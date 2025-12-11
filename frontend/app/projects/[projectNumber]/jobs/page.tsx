@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
-import { jobApi } from '@/lib/api/jobs';
+import { projectApi } from '@/lib/api/projects';
 
 const StatusBadge = ({ status }: { status: string }) => {
   const getStatusStyles = (status: string) => {
@@ -99,7 +99,7 @@ export default function ProjectJobsPage() {
 
   const { data: jobsData, isLoading, error } = useQuery({
     queryKey: ['jobs', projectNumber],
-    queryFn: () => jobApi.getJobsList(projectNumber),
+    queryFn: () => projectApi.getProjectJobs(projectNumber),
     staleTime: 30_000,
   });
 

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api';
+import { projectApi } from '@/lib/api';
 import DatasetTree from '@/components/DatasetTree';
 
 export default function ProjectDatasetsPage() {
@@ -27,7 +27,7 @@ export default function ProjectDatasetsPage() {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['datasets', projectNumber, { datasetName: qParam, page, per }],
-    queryFn: () => apiClient.getProjectDatasets(projectNumber, { datasetName: qParam, page, per }),
+    queryFn: () => projectApi.getProjectDatasets(projectNumber, { datasetName: qParam, page, per }),
     placeholderData: keepPreviousData,
     staleTime: 60_000,
   });
@@ -35,7 +35,7 @@ export default function ProjectDatasetsPage() {
   // Tree data query (enabled only when tree view)
   const { data: treeData, isLoading: isTreeLoading, error: treeError } = useQuery({
     queryKey: ['datasets-tree', projectNumber],
-    queryFn: () => apiClient.getProjectDatasetsTree(projectNumber),
+    queryFn: () => projectApi.getProjectDatasetsTree(projectNumber),
     enabled: viewMode === 'tree',
     staleTime: 60_000,
   });

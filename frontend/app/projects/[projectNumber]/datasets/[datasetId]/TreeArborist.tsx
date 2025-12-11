@@ -72,18 +72,32 @@ export default function TreeArborist({ datasetTree, datasetId, projectNumber }: 
     const hasChildren = node.children && node.children.length > 0;
     const isSelected = node.data.isCurrentDataset;
 
+    const handleExpandToggle = (e: React.MouseEvent) => {
+      e.stopPropagation(); // Prevent navigation when clicking expand button
+      if (hasChildren) {
+        node.toggle(); // Use Arborist's built-in toggle method
+      }
+    };
+
+    const handleNodeClick = (e: React.MouseEvent) => {
+      // Only navigate if clicking on the node name, not the expand button
+      handleNodeActivation(node.data);
+    };
+
     return (
       <div 
         ref={dragHandle} 
         style={style} 
         className={`
-          flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-gray-100 
+          flex items-center gap-2 px-2 py-1 hover:bg-gray-100 
           ${isSelected ? 'bg-blue-50 font-bold text-blue-600' : ''}
         `}
-        onClick={() => handleNodeActivation(node.data)}
       >
         {/* Expand/Collapse Icon */}
-        <div className="w-4 h-4 flex items-center justify-center">
+        <div 
+          className="w-4 h-4 flex items-center justify-center cursor-pointer hover:bg-gray-200 rounded"
+          onClick={handleExpandToggle}
+        >
           {hasChildren ? (
             isExpanded ? (
               <ChevronDown size={14} className="text-gray-500" />
@@ -107,7 +121,10 @@ export default function TreeArborist({ datasetTree, datasetId, projectNumber }: 
         </div>
 
         {/* Node Name */}
-        <span className={`flex-1 ${isSelected ? 'font-bold' : ''}`}>
+        <span 
+          className={`flex-1 cursor-pointer ${isSelected ? 'font-bold' : ''}`}
+          onClick={handleNodeClick}
+        >
           {node.data.name}
         </span>
 

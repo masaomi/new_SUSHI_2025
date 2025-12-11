@@ -9,8 +9,6 @@ import DatasetTree from './DatasetTree';
 import DatasetSamples from './DatasetSamples';
 import DatasetInfoCard from './DatasetInfoCard';
 import TreeArboristWrapper from './TreeArboristWrapper';
-import TreeVirtualWrapper from './TreeVirtualWrapper';
-import TreeCustomWrapper from './TreeCustomWrapper';
 
 export default function DatasetDetailPage() {
   const params = useParams<{ projectNumber: string; datasetId: string }>();
@@ -105,13 +103,12 @@ export default function DatasetDetailPage() {
         <div className="p-6 space-y-4">
 
           <div className="mt-8 pt-6 border-t">
-            <h3 className="text-lg font-semibold mb-6">Folder Structure - Tree Implementation Comparison</h3>
+            <h3 className="text-lg font-semibold mb-6">Folder Structure - Implementation Comparison</h3>
             
             {/* Original jQuery jsTree Implementation */}
             <div className="mb-8">
               <div className="flex items-center gap-2 mb-3">
                 <h4 className="text-md font-medium text-gray-900">1. Original (jQuery + jsTree)</h4>
-                <span className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded">Legacy</span>
                 <span className="text-sm text-gray-500">~240KB bundle</span>
               </div>
               <DatasetTree datasetId={datasetId} projectNumber={projectNumber} />
@@ -121,30 +118,9 @@ export default function DatasetDetailPage() {
             <div className="mb-8">
               <div className="flex items-center gap-2 mb-3">
                 <h4 className="text-md font-medium text-gray-900">2. React Arborist</h4>
-                <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">Modern Library</span>
-                <span className="text-sm text-gray-500">~50KB bundle</span>
+                <span className="text-sm text-gray-500">~50KB bundle (-79% size)</span>
               </div>
               <TreeArboristWrapper datasetId={datasetId} projectNumber={projectNumber} />
-            </div>
-
-            {/* React Window Virtual Implementation */}
-            <div className="mb-8">
-              <div className="flex items-center gap-2 mb-3">
-                <h4 className="text-md font-medium text-gray-900">3. React Window (Virtual)</h4>
-                <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded">Virtualized</span>
-                <span className="text-sm text-gray-500">~25KB bundle</span>
-              </div>
-              <TreeVirtualWrapper datasetId={datasetId} projectNumber={projectNumber} />
-            </div>
-
-            {/* Custom React Implementation */}
-            <div className="mb-8">
-              <div className="flex items-center gap-2 mb-3">
-                <h4 className="text-md font-medium text-gray-900">4. Custom React</h4>
-                <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded">Lightweight</span>
-                <span className="text-sm text-gray-500">~5KB bundle</span>
-              </div>
-              <TreeCustomWrapper datasetId={datasetId} projectNumber={projectNumber} />
             </div>
           </div>
 
