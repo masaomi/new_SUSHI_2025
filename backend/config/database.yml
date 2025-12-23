@@ -18,7 +18,7 @@ development:
 #  adapter: mysql2
 #  pool: 10
 #  username: sushilover
-#  password: ufUuOfEP3BWrCnpa
+#  password: uf***
 #  database: sushi
 #  encoding: utf8
 #  socket: /var/run/mysqld/mysqld.sock
