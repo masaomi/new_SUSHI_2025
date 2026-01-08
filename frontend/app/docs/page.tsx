@@ -16,6 +16,19 @@ export default function DocsHomePage() {
         </div>
 
         <div className="border rounded-lg p-6 hover:shadow-md transition-shadow">
+          <h3 className="text-lg font-semibold mb-2">API System</h3>
+          <p className="text-gray-600 mb-4">
+            Documentation to all backend API calls
+          </p>
+          <a 
+            href="/docs/api" 
+            className="inline-flex items-center text-blue-600 hover:text-blue-800"
+          >
+            View API Documentation →
+          </a>
+        </div>
+
+        <div className="border rounded-lg p-6 hover:shadow-md transition-shadow">
           <h3 className="text-lg font-semibold mb-2">Testing</h3>
           <p className="text-gray-600 mb-4">
             Overview of API layer, hook layer, and integration testing approaches with practical examples and focus areas.

@@ -5,6 +5,7 @@ import "highlight.js/styles/github.css";
 import "handsontable/styles/handsontable.min.css"
 import { AuthProvider } from "@/providers/AuthContext";
 import { QueryProvider } from "@/providers/QueryProvider";
+import Header from "@/components/shared/Header";
 
 const inter = Inter({
   variable: "--font-geist-sans",
@@ -30,10 +31,21 @@ export default function RootLayout({
     <html lang="en">
       <body
         className={`${inter.variable} ${robotoMono.variable} antialiased`}
+        style={{ backgroundColor: '#e0e5e9' }}
       >
         <QueryProvider>
           <AuthProvider>
-            {children}
+            <div className="flex flex-col min-h-screen">
+              <Header />
+              <main className="flex-grow">
+                {children}
+              </main>
+              <footer className="py-4 mt-auto" style={{ backgroundColor: '#2c3e50', color: 'white' }}>
+                <div className="container mx-auto px-6 text-center text-sm">
+                  SUSHI - produced by Functional Genomics Center Zurich and SIB
+                </div>
+              </footer>
+            </div>
           </AuthProvider>
         </QueryProvider>
       </body>

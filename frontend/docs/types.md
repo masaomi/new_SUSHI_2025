@@ -10,7 +10,7 @@
 
 | API call | Return Type | Subtypes | Hooks | 
 |------|---------|------|-----|
-| `projectApi.getProjectDatasets(projectId, params:{datasetName, user, page, per})` | `DatasetListResponse` | `DatasetMinimal` | `useProjectDatasets` |
+| `projectApi.getProjectDatasets(projectId, params:{q, user, page, per})` | `DatasetListResponse` | `DatasetMinimal` | `useProjectDatasets` |
 | `datasetApi.getDataset(id)` | `DatasetFullResponse` | | `useDatasetBase` |
 | `DatasetSample` | 
 | `DatasetAppCategory` | 
@@ -20,8 +20,8 @@
 
 | API call | Return Type | Subtypes | Hooks |
 |------|---------|--------|------|
-| `jobApi.getAllJobs(params:{datasetName, user, page, per})` | `JobListResponse` | `JobMinimal` | `useAllJobs` |
-| `projectApi.getProjectJobs(projectId, params:{datasetName, user, page, per})` | `JobListResponse` | `JobMinimal` | `useProjectJobs` |
+| `jobApi.getAllJobs(params:{status, user, dataset_id, from_date, to_date, page, per})` | `JobListResponse` | `JobMinimal` | `useAllJobs` |
+| `projectApi.getProjectJobs(projectId, params:{status, user, dataset_id, from_date, to_date, page, per})` | `JobListResponse` | `JobMinimal` | `useProjectJobs` |
 | `jobApi.getJob(jobId)` | `JobFullResponse` | | `useJobBase` |
 | `jobApi.submitJob(JobSubmissionRequest)` | `JobSubmissionResponse` | `DynamicFormData` | 
 

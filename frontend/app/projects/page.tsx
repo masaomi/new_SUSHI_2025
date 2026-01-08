@@ -1,29 +1,25 @@
 'use client';
 
-import Link from 'next/link';
-import { useProjectList } from '@/lib/hooks';
+import { useParams, useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
-export default function ProjectsPage() {
-  const { userProjects, isLoading, error, isEmpty } = useProjectList();
+export default function ProjectRedirect() {
+  const params = useParams();
+  const router = useRouter();
+  const projectNumber = params.projectNumber;
 
-  if (isLoading) return <div className="p-6">Loading projects...</div>;
-  if (error) return <div className="p-6 text-red-600">Failed to load projects</div>;
+  useEffect(() => {
+    if (projectNumber) {
+      router.replace(`/projects/${projectNumber}`);
+    }
+  }, [projectNumber, router]);
 
   return (
-    <div className="container mx-auto px-6 py-8">
-      <h1 className="text-2xl font-bold mb-6">Select Project</h1>
-      {isEmpty ? (
-        <div className="text-gray-600">No accessible projects found.</div>
-      ) : (
-        <div className="grid gap-4">
-          {userProjects?.projects.map((p) => (
-            <Link key={p.number} href={`/projects/${p.number}`} className="block p-4 border rounded hover:bg-gray-50">
-              <span className="font-semibold">Project {p.number}</span>
-            </Link>
-          ))}
-        </div>
-      )}
+    <div className="container mx-auto px-6 py-10">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+        <p className="mt-4 text-gray-600">Redirecting to new project URL...</p>
+      </div>
     </div>
   );
 }
-

@@ -11,10 +11,10 @@ interface UsePaginationReturn {
 /**
  * Hook to manage pagination state in URL parameters
  * 
- * @param defaultPerPage - Default items per page (default: 50)
+ * @param defaultPerPage - Default items per page (default: 10)
  * @returns Object containing pagination state and handlers
  */
-export function usePagination(defaultPerPage: number = 50): UsePaginationReturn {
+export function usePagination(defaultPerPage: number = 10): UsePaginationReturn {
   const router = useRouter();
   const searchParams = useSearchParams();
 
