@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { JobSubmissionRequest, DynamicFormData } from "@/lib/types";
 import {
   FormFieldComponent,
@@ -10,6 +11,7 @@ import {
 } from "@/lib/utils/form-renderer";
 import Breadcrumbs from '@/lib/ui/Breadcrumbs';
 import { useDatasetBase, useApplicationFormSchema, useJobSubmission } from '@/lib/hooks';
+import { datasetApi } from '@/lib/api';
 import RunApplicationPageSkeleton from './RunApplicationPageSkeleton';
 
 export default function RunApplicationPage() {
@@ -19,9 +21,13 @@ export default function RunApplicationPage() {
     appName: string;
   }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const projectNumber = Number(params.projectNumber);
   const datasetId = Number(params.datasetId);
   const appName = params.appName;
+
+  // Check if this is a resubmit
+  const isResubmit = searchParams.get('resubmit') === 'true';
 
   // Use existing hook for dataset data
   const { dataset, isLoading: isDatasetLoading, error: datasetError, notFound: datasetNotFound } = useDatasetBase(datasetId);
@@ -32,8 +38,16 @@ export default function RunApplicationPage() {
     isLoading: isFormConfigLoading,
     error: formConfigError,
   } = useApplicationFormSchema(appName);
-  
+
   const formConfig = formConfigData?.application;
+
+  // Fetch resubmit parameters when resubmit=true
+  const { data: resubmitData, isLoading: isResubmitLoading } = useQuery({
+    queryKey: ['resubmit-data', datasetId],
+    queryFn: () => datasetApi.getResubmitData(datasetId),
+    enabled: isResubmit,
+    staleTime: Infinity, // Only fetch once
+  });
 
   // Use custom hook for job submission
   const { submitJob, isSubmitting, error: submitError, success: submitSuccess } = useJobSubmission();
@@ -49,21 +63,33 @@ export default function RunApplicationPage() {
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (dataset) {
+        const baseName = `${appName}_${dataset.name}_${new Date().toISOString().slice(0, 10)}`;
         setNextDatasetData((prev) => ({
           ...prev,
-          datasetName: `${appName}_${dataset.name}_${new Date().toISOString().slice(0, 10)}`,
+          datasetName: isResubmit ? `${baseName}_Resubmit` : baseName,
         }));
       }
     }, 1000);
     return () => clearTimeout(timeoutId);
-  }, [dataset, appName]);
+  }, [dataset, appName, isResubmit]);
 
-  // Initialize dynamic form data when schema loads
+  // Initialize dynamic form data when schema loads, with optional resubmit prepopulation
   useEffect(() => {
     if (formConfig?.form_fields) {
-      setDynamicFormData(initializeFormData(formConfig.form_fields));
+      const initialData = initializeFormData(formConfig.form_fields);
+
+      // If resubmit, merge the resubmit parameters
+      if (isResubmit && resubmitData?.parameters) {
+        Object.keys(resubmitData.parameters).forEach((key) => {
+          if (key in initialData) {
+            initialData[key] = resubmitData.parameters[key];
+          }
+        });
+      }
+
+      setDynamicFormData(initialData);
     }
-  }, [formConfig]);
+  }, [formConfig, isResubmit, resubmitData]);
 
   // Form handlers
   const handleInputChange = (
@@ -113,7 +139,7 @@ export default function RunApplicationPage() {
     }
   };
 
-  if (isDatasetLoading || isFormConfigLoading) {
+  if (isDatasetLoading || isFormConfigLoading || (isResubmit && isResubmitLoading)) {
     return <RunApplicationPageSkeleton />;
   }
 

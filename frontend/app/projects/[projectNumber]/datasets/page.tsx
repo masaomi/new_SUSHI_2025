@@ -91,6 +91,15 @@ export default function ProjectDatasetsPage() {
     router.push(`?${sp.toString()}`);
   };
 
+  const downloadAllDatasets = async () => {
+    await projectApi.getDownloadAllDatasets(projectNumber);
+    alert(`Called mock getDownloadAllDataset`);
+  }
+
+  const deleteDatasets = async (datasets: number[]) => {
+    alert(`Called mock deleteDatasets(${datasets})`)
+  }
+
   if (isLoading) return (
     <div className="container mx-auto px-6 py-8">
       <div className="animate-pulse">
@@ -248,11 +257,15 @@ export default function ProjectDatasetsPage() {
         <button 
           className="px-2 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
           disabled={selectedSet.size === 0}
+          onClick={()=>deleteDatasets(selectedSet)}
         >
           Delete selected ({selectedSet.size})
         </button>
         <button 
           className="px-2 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+          onClick={() => {
+            downloadAllDatasets();
+          }}
         >
           Download All
         </button>

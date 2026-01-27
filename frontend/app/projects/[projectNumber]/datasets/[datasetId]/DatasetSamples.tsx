@@ -1,5 +1,9 @@
+'use client';
+
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { DatasetSample } from '@/lib/types';
+import { datasetApi } from '@/lib/api';
 
 interface DatasetSamplesProps {
   samples: DatasetSample[]
@@ -8,6 +12,7 @@ interface DatasetSamplesProps {
 }
 
 export default function DatasetSamples({ samples, projectNumber, datasetId}: DatasetSamplesProps) {
+  const router = useRouter();
 
   // TODO: move this part of the code to when you load the dataset info, not in the dataset samples
 //   if (isDatasetSamplesLoading && !datasetSamples) {
@@ -64,8 +69,14 @@ export default function DatasetSamples({ samples, projectNumber, datasetId}: Dat
           <button className="px-3 py-1 text-sm font-medium text-blue-700 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors">
             📊 Edit Factors
           </button>
-          <button className="px-3 py-1 text-sm font-medium text-blue-700 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors">
-            📁 Data Folder
+          <button
+            className="px-3 py-1 text-sm font-medium text-blue-700 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors"
+            onClick={async () => {
+              const { path } = await datasetApi.getDatasetDataFolder(datasetId);
+              router.push(`/files/${path}`);
+            }}
+          >
+            Data Folder
           </button>
           <Link 
             href={`/projects/${projectNumber}/datasets/${datasetId}/samples/edit`}

@@ -60,7 +60,7 @@ export default function ProjectPage() {
     {
       title: 'gStore',
       description: 'Show result folder. You can see and download files of result data.',
-      link: `/projects/${projectNumber}/files/p${projectNumber}`,
+      link: `files/p${projectNumber}`,
       icon: '/images/uni.png',
     },
   ];
