@@ -112,12 +112,22 @@ function ParentSelector({ treeNodes, selectedId, onSelect, searchQuery }: Parent
     return (
       <div key={node.id}>
         <div
-          className="flex items-center py-1.5 px-2 hover:bg-gray-50 cursor-pointer"
+          className={`flex items-center py-1.5 px-2 cursor-pointer transition-colors ${
+            isSelected ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50'
+          }`}
           style={{ paddingLeft: `${level * 20 + 8}px` }}
-          onClick={() => toggleExpand(node.id)}
+          onClick={() => onSelect(isSelected ? null : node.id)}
         >
           {/* Expand/collapse icon */}
-          <span className="w-4 h-4 flex items-center justify-center mr-1 text-gray-400 text-xs">
+          <span
+            className={`w-4 h-4 flex items-center justify-center mr-1 text-gray-400 text-xs ${hasChildren ? 'cursor-pointer hover:text-gray-600' : ''}`}
+            onClick={(e) => {
+              if (hasChildren) {
+                e.stopPropagation();
+                toggleExpand(node.id);
+              }
+            }}
+          >
             {hasChildren ? (isExpanded ? '▼' : '▶') : ''}
           </span>
 
@@ -126,21 +136,16 @@ function ParentSelector({ treeNodes, selectedId, onSelect, searchQuery }: Parent
             <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
           </svg>
 
-          {/* Radio button - only this selects */}
-          <button
-            type="button"
+          {/* Radio button indicator */}
+          <div
             className={`w-4 h-4 rounded-full border-2 mr-2 flex items-center justify-center flex-shrink-0 transition-colors ${
               isSelected
                 ? 'border-blue-600 bg-blue-600'
-                : 'border-gray-300 hover:border-blue-400'
+                : 'border-gray-300'
             }`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelect(isSelected ? null : node.id);
-            }}
           >
             {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-          </button>
+          </div>
 
           {/* Name and ID */}
           <span className="text-sm text-gray-700 truncate">{node.name}</span>
@@ -184,6 +189,14 @@ export default function ImportDatasetPage() {
   const [treeSearch, setTreeSearch] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const ALLOWED_EXTENSIONS = ['.txt', '.csv', '.tsv'];
+
+  const isValidFileType = (fileName: string): boolean => {
+    const lowerName = fileName.toLowerCase();
+    return ALLOWED_EXTENSIONS.some(ext => lowerName.endsWith(ext));
+  };
 
   const { data: treeData, isLoading: isTreeLoading } = useQuery({
     queryKey: ['datasets-tree', projectNumber],
@@ -233,9 +246,46 @@ export default function ImportDatasetPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
+      if (!isValidFileType(selectedFile.name)) {
+        setError('Invalid file type. Please select a .txt, .csv, or .tsv file');
+        return;
+      }
+      setError(null);
       setFile(selectedFile);
       if (!datasetName) {
-        const nameWithoutExtension = selectedFile.name.replace(/\.tsv$/i, '');
+        const nameWithoutExtension = selectedFile.name.replace(/\.(txt|csv|tsv)$/i, '');
+        setDatasetName(nameWithoutExtension);
+      }
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    const droppedFile = e.dataTransfer.files?.[0];
+    if (droppedFile) {
+      if (!isValidFileType(droppedFile.name)) {
+        setError('Invalid file type. Please select a .txt, .csv, or .tsv file');
+        return;
+      }
+      setError(null);
+      setFile(droppedFile);
+      if (!datasetName) {
+        const nameWithoutExtension = droppedFile.name.replace(/\.(txt|csv|tsv)$/i, '');
         setDatasetName(nameWithoutExtension);
       }
     }
@@ -292,12 +342,19 @@ export default function ImportDatasetPage() {
               </label>
               <div
                 className={`relative border-2 border-dashed rounded-lg p-4 text-center transition-colors ${
-                  file ? 'border-green-300 bg-green-50' : 'border-gray-300 hover:border-gray-400'
+                  file
+                    ? 'border-green-300 bg-green-50'
+                    : isDragOver
+                      ? 'border-blue-400 bg-blue-50'
+                      : 'border-gray-300 hover:border-gray-400'
                 }`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
               >
                 <input
                   type="file"
-                  accept=".tsv"
+                  accept=".txt,.csv,.tsv"
                   onChange={handleFileChange}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 />
@@ -314,7 +371,12 @@ export default function ImportDatasetPage() {
                     <svg className="w-8 h-8 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
-                    <p className="text-sm text-gray-600">Click to select a <span className="font-medium">.tsv</span> file</p>
+                    <p className="text-sm text-gray-600">
+                      {isDragOver
+                        ? 'Drop the file here'
+                        : <>Click or drag to upload a <span className="font-medium">.txt</span>, <span className="font-medium">.csv</span>, or <span className="font-medium">.tsv</span> file</>
+                      }
+                    </p>
                   </div>
                 )}
               </div>
