@@ -106,11 +106,41 @@ export default function DatasetDetailPage() {
   return (
     <div className="container mx-auto px-6 py-8">
 
-      <Breadcrumbs items={[
-        { label: `Project ${projectNumber}`, href: `/projects/${projectNumber}` },
-        { label: 'Datasets', href: `/projects/${projectNumber}/datasets` },
-        { label: dataset.name, active: true }
-      ]} />
+      <div className="flex items-center justify-between mb-2">
+        <Breadcrumbs items={[
+          { label: `Project ${projectNumber}`, href: `/projects/${projectNumber}` },
+          { label: 'Datasets', href: `/projects/${projectNumber}/datasets` },
+          { label: dataset.name, active: true }
+        ]} />
+
+        {/* Quick Actions - top right */}
+        <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+          <button
+            onClick={async () => {
+              const { path } = await datasetApi.getDatasetDataFolder(datasetId);
+              router.push(`/files/${path}`);
+            }}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-700 bg-white rounded-md shadow-sm hover:bg-blue-50 hover:text-blue-700 transition-colors"
+            title="Data Folder"
+          >
+            <span>Data Folder</span>
+          </button>
+          <button
+            onClick={() => router.push(`/projects/${projectNumber}/datasets/${datasetId}/samples/edit`)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-700 bg-white rounded-md shadow-sm hover:bg-blue-50 hover:text-blue-700 transition-colors"
+            title="Edit Table"
+          >
+            <span>Edit Samples</span>
+          </button>
+          <button
+            onClick={() => router.push(`/projects/${projectNumber}/datasets/${datasetId}/jobs`)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-700 bg-white rounded-md shadow-sm hover:bg-blue-50 hover:text-blue-700 transition-colors"
+            title="Job Scripts"
+          >
+            <span>Jobs</span>
+          </button>
+        </div>
+      </div>
 
       {/* Dataset Actions */}
       <div className="flex flex-wrap gap-1 mb-3">

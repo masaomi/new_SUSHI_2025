@@ -233,27 +233,41 @@ export default function ProjectDatasetsPage() {
       <h1 className="text-2xl font-bold mb-6">Project {projectNumber} - DataSets</h1>
       
       {/* Action buttons row */}
-      <div className="flex gap-2 mb-4">
-        <button
-          onClick={() => {
-            const sp = new URLSearchParams(searchParams.toString());
-            sp.delete('view');
-            router.push(`?${sp.toString()}`);
-          }}
-          className={`px-2 py-1 rounded text-sm ${viewMode === 'table' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
-        >
-          Table View
-        </button>
-        <button
-          onClick={() => {
-            const sp = new URLSearchParams(searchParams.toString());
-            sp.set('view', 'tree');
-            router.push(`?${sp.toString()}`);
-          }}
-          className={`px-2 py-1 rounded text-sm ${viewMode === 'tree' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
-        >
-          Tree View
-        </button>
+      <div className="flex gap-3 mb-4 items-center">
+        {/* View toggle group */}
+        <div className="inline-flex rounded-lg bg-gray-100 p-1">
+          <button
+            onClick={() => {
+              const sp = new URLSearchParams(searchParams.toString());
+              sp.delete('view');
+              router.push(`?${sp.toString()}`);
+            }}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+              viewMode === 'table'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Table
+          </button>
+          <button
+            onClick={() => {
+              const sp = new URLSearchParams(searchParams.toString());
+              sp.set('view', 'tree');
+              router.push(`?${sp.toString()}`);
+            }}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+              viewMode === 'tree'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Tree
+          </button>
+        </div>
+
+        <div className="w-px h-6 bg-gray-300"></div>
+
         <button 
           className="px-2 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
           disabled={selectedSet.size === 0}
@@ -273,13 +287,30 @@ export default function ProjectDatasetsPage() {
 
       {viewMode === 'tree' ? (
         <div>
-          <div className="mb-4 flex items-center gap-4">
-            <input
-              value={treeSearchQuery}
-              onChange={(e) => setTreeSearchQuery(e.target.value)}
-              placeholder="Search in tree..."
-              className="border rounded px-3 py-2 flex-1"
-            />
+          <div className="mb-4">
+            <div className="relative max-w-md">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              <input
+                value={treeSearchQuery}
+                onChange={(e) => setTreeSearchQuery(e.target.value)}
+                placeholder="Search datasets..."
+                className="w-full pl-10 pr-10 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
+              />
+              {treeSearchQuery && (
+                <button
+                  onClick={() => setTreeSearchQuery('')}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
 
           {isTreeLoading && <div className="p-6">Loading tree...</div>}
