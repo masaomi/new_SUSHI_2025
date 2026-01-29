@@ -2,24 +2,28 @@
 
 import { useParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { jobApi } from '@/lib/api';
+import { jobApi, projectApi } from '@/lib/api';
 import Breadcrumbs from '@/lib/ui/Breadcrumbs';
 
 
 export default function JobScriptPage() {
-  const params = useParams<{ jobid: string; projectNumber?: string }>();
+  const params = useParams<{ jobid: string }>();
   const jobId = params.jobid;
-  const projectNumber = params.projectNumber;
   const [script, setScript] = useState<string>('');
+  const [projectId, setProjectId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadScript = async () => {
+    const loadData = async () => {
       try {
         setLoading(true);
-        const scriptContent = await jobApi.getJobScript(Number(jobId));
+        const [scriptContent, projectData] = await Promise.all([
+          jobApi.getJobScript(Number(jobId)),
+          projectApi.getProjectIdFromJob(Number(jobId))
+        ]);
         setScript(scriptContent);
+        setProjectId(projectData.projectId);
       } catch (err) {
         setError('Failed to load script content');
         console.error('Error loading script:', err);
@@ -29,15 +33,15 @@ export default function JobScriptPage() {
     };
 
     if (jobId) {
-      loadScript();
+      loadData();
     }
   }, [jobId]);
 
   return (
     <div className="container mx-auto px-6 py-8">
       <Breadcrumbs items={[
-        { label: `Project ${projectNumber}`, href: `/projects/${projectNumber}` },
-        { label: 'Jobs', href: `/projects/${projectNumber}/jobs` },
+        { label: `Project ${projectId}`, href: `/projects/${projectId}` },
+        { label: 'Jobs', href: `/projects/${projectId}/jobs` },
         { label: `Job ${jobId}` },
         { label: "Script", active: true }
       ]} />
