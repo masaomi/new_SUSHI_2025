@@ -4,13 +4,12 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import Breadcrumbs from '@/lib/ui/Breadcrumbs';
-import { useDatasetBase } from '@/lib/hooks';
+import { useDatasetBase, useDatasetTree } from '@/lib/hooks';
 import { datasetApi } from '@/lib/api';
+import DatasetTreeRcTree from '@/components/DatasetTreeRcTree';
 import DatasetApps from './DatasetApps';
-import DatasetTree from './DatasetTree';
 import DatasetSamples from './DatasetSamples';
 import DatasetInfoCard from './DatasetInfoCard';
-import TreeArboristWrapper from './TreeArboristWrapper';
 
 export default function DatasetDetailPage() {
   const params = useParams<{ projectNumber: string; datasetId: string }>();
@@ -19,6 +18,7 @@ export default function DatasetDetailPage() {
   const datasetId = Number(params.datasetId);
 
   const { dataset, isLoading: isDatasetLoading, error: datasetError, notFound: datasetNotFound } = useDatasetBase(datasetId);
+  const { datasetTree, isLoading: isTreeLoading, error: treeError } = useDatasetTree(datasetId);
 
   // State for expandable input actions
   const [activeAction, setActiveAction] = useState<'comment' | 'rename' | 'bfabricId' | null>(null);
@@ -128,7 +128,7 @@ export default function DatasetDetailPage() {
           <button
             onClick={() => router.push(`/projects/${projectNumber}/datasets/${datasetId}/samples/edit`)}
             className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-700 bg-white rounded-md shadow-sm hover:bg-blue-50 hover:text-blue-700 transition-colors"
-            title="Edit Table"
+            title="Edit Samples"
           >
             <span>Edit Samples</span>
           </button>
@@ -187,7 +187,7 @@ export default function DatasetDetailPage() {
             router.push(`/projects/${projectNumber}/datasets/${datasetId}/run-application/${appName}?resubmit=true`);
           }}
         >
-          Resubmit
+          Run Again
         </button>
         <button
           className={`px-2 py-1 text-xs font-medium rounded ${activeAction === 'bfabricId' ? 'bg-blue-600 text-white border border-blue-600' : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'}`}
@@ -249,7 +249,15 @@ export default function DatasetDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
         {/* Left side - Tree (70%) */}
         <div className="lg:col-span-7">
-          <TreeArboristWrapper datasetId={datasetId} projectNumber={projectNumber} />
+          {isTreeLoading && <div className="h-64 border rounded-lg bg-gray-50 flex items-center justify-center"><div className="text-gray-500">Loading tree...</div></div>}
+          {treeError && <div className="h-64 border rounded-lg bg-red-50 flex items-center justify-center"><div className="text-red-600">Failed to load tree data</div></div>}
+          {datasetTree && (
+            <DatasetTreeRcTree
+              treeNodes={datasetTree}
+              projectNumber={projectNumber}
+              currentDatasetId={datasetId}
+            />
+          )}
         </div>
         
         {/* Right side - Dataset Information (30%) */}

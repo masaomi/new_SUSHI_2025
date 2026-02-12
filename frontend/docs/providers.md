@@ -1,7 +1,8 @@
 # Application Providers
 
- **QueryProvider**   
- **AuthProvider**
+**Last Updated:** 2026-01-29
+
+**QueryProvider** | **AuthProvider**
 
 ## Provider Hierarchy
 
@@ -26,19 +27,34 @@ const { data, isLoading, error } = useQuery({
 
 ## AuthProvider
 
-Manages user authentication state and provides authentication context throughout the entire application.
+Manages user authentication state and provides the `useAuth()` hook throughout the application.
 
+**What it does automatically:**
+- Fetches auth status on app load
+- Verifies JWT tokens from localStorage
+- Redirects unauthenticated users to `/login`
+- Re-checks auth on every route change
 
-- **Authentication Status Management**
-- **JWT Token Handling**
-- **Route Protection**
-- **Authentication States**
+**You don't need `useAuth()` on every page** - the provider handles redirects automatically. Only use it when you need to:
+- Display the current username
+- Show different UI based on auth state
+- Manually trigger logout
+
+### useAuth() Hook
+
 ```typescript
-interface AuthContextType {
-  authStatus: AuthenticationStatus | null;  // Current auth configuration
-  loading: boolean;                         // Loading state
-  error: string | null;                     // Error messages
-  refetch: () => Promise<void>;            // Refresh auth status
-  logout: () => void;                      // Logout function
+import { useAuth } from '@/providers/AuthContext';
+
+const { authStatus, loading, error, logout, refetch } = useAuth();
+```
+
+**Returns:**
+```typescript
+{
+  authStatus: AuthenticationStatus | null;  // User info, authentication_skipped flag
+  loading: boolean;                         // True while checking auth
+  error: string | null;                     // Error message if auth check failed
+  logout: () => void;                       // Clears token and redirects to /login
+  refetch: () => Promise<void>;             // Re-check auth status
 }
 ```

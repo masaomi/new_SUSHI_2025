@@ -1,325 +1,45 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { projectApi } from '@/lib/api';
-
-interface TreeNode {
-  id: number;
-  name: string;
-  parent: number | '#';
-  children?: TreeNode[];
-}
-
-interface ParentSelectorProps {
-  treeNodes: any[];
-  selectedId: number | null;
-  onSelect: (id: number | null) => void;
-  searchQuery: string;
-}
-
-function ParentSelector({ treeNodes, selectedId, onSelect, searchQuery }: ParentSelectorProps) {
-  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
-
-  // Transform flat data to hierarchical
-  const roots = useMemo(() => {
-    const nodeMap = new Map<number, TreeNode>();
-    const rootNodes: TreeNode[] = [];
-
-    treeNodes.forEach(node => {
-      nodeMap.set(node.id, {
-        id: node.id,
-        name: node.dataset_data?.name || node.text || `Dataset ${node.id}`,
-        parent: node.parent,
-        children: [],
-      });
-    });
-
-    treeNodes.forEach(node => {
-      const treeNode = nodeMap.get(node.id);
-      if (!treeNode) return;
-
-      if (node.parent === '#') {
-        rootNodes.push(treeNode);
-      } else {
-        const parent = nodeMap.get(Number(node.parent));
-        if (parent) {
-          parent.children = parent.children || [];
-          parent.children.push(treeNode);
-        }
-      }
-    });
-
-    return rootNodes;
-  }, [treeNodes]);
-
-  // Filter nodes based on search
-  const filteredRoots = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return roots;
-
-    const filterNodes = (nodes: TreeNode[], parentMatches: boolean = false): TreeNode[] => {
-      return nodes
-        .map(node => {
-          const selfMatch = node.name.toLowerCase().includes(q);
-          const shouldInclude = parentMatches || selfMatch;
-
-          // If this node or parent matches, include all children
-          // Otherwise, filter children recursively
-          const filteredChildren = shouldInclude
-            ? node.children || []
-            : filterNodes(node.children || [], false);
-
-          if (shouldInclude || filteredChildren.length > 0) {
-            return { ...node, children: filteredChildren };
-          }
-          return null;
-        })
-        .filter(Boolean) as TreeNode[];
-    };
-
-    return filterNodes(roots);
-  }, [roots, searchQuery]);
-
-  // Expand all when searching
-  useEffect(() => {
-    if (searchQuery) {
-      const allIds = new Set<number>();
-      const collectIds = (nodes: TreeNode[]) => {
-        nodes.forEach(node => {
-          allIds.add(node.id);
-          if (node.children) collectIds(node.children);
-        });
-      };
-      collectIds(filteredRoots);
-      setExpandedIds(allIds);
-    }
-  }, [searchQuery, filteredRoots]);
-
-  const toggleExpand = (id: number) => {
-    const next = new Set(expandedIds);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setExpandedIds(next);
-  };
-
-  const renderNode = (node: TreeNode, level: number = 0) => {
-    const hasChildren = node.children && node.children.length > 0;
-    const isExpanded = expandedIds.has(node.id);
-    const isSelected = selectedId === node.id;
-
-    return (
-      <div key={node.id}>
-        <div
-          className={`flex items-center py-1.5 px-2 cursor-pointer transition-colors ${
-            isSelected ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50'
-          }`}
-          style={{ paddingLeft: `${level * 20 + 8}px` }}
-          onClick={() => onSelect(isSelected ? null : node.id)}
-        >
-          {/* Expand/collapse icon */}
-          <span
-            className={`w-4 h-4 flex items-center justify-center mr-1 text-gray-400 text-xs ${hasChildren ? 'cursor-pointer hover:text-gray-600' : ''}`}
-            onClick={(e) => {
-              if (hasChildren) {
-                e.stopPropagation();
-                toggleExpand(node.id);
-              }
-            }}
-          >
-            {hasChildren ? (isExpanded ? '▼' : '▶') : ''}
-          </span>
-
-          {/* Folder icon */}
-          <svg className="w-4 h-4 text-amber-500 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
-          </svg>
-
-          {/* Radio button indicator */}
-          <div
-            className={`w-4 h-4 rounded-full border-2 mr-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-              isSelected
-                ? 'border-blue-600 bg-blue-600'
-                : 'border-gray-300'
-            }`}
-          >
-            {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-          </div>
-
-          {/* Name and ID */}
-          <span className="text-sm text-gray-700 truncate">{node.name}</span>
-          <span className="text-xs text-gray-400 ml-1.5 flex-shrink-0">#{node.id}</span>
-        </div>
-
-        {/* Children */}
-        {hasChildren && isExpanded && (
-          <div>
-            {node.children!.map(child => renderNode(child, level + 1))}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  return (
-    <div className="border border-gray-200 rounded-lg bg-white max-h-56 overflow-y-auto">
-      {filteredRoots.length === 0 ? (
-        <div className="p-4 text-gray-500 text-sm text-center">No datasets found</div>
-      ) : (
-        <div className="py-1">
-          {filteredRoots.map(node => renderNode(node))}
-        </div>
-      )}
-    </div>
-  );
-}
+import { useImportDatasetForm } from '@/lib/hooks';
+import ParentSelector from './ParentSelector';
 
 export default function ImportDatasetPage() {
   const params = useParams<{ projectNumber: string }>();
-  const router = useRouter();
   const projectNumber = Number(params.projectNumber);
 
-  const [file, setFile] = useState<File | null>(null);
-  const [datasetName, setDatasetName] = useState('');
-  const [parentId, setParentId] = useState<number | null>(null);
-  const [parentIdInput, setParentIdInput] = useState('');
-  const [parentIdError, setParentIdError] = useState<string | null>(null);
-  const [noParent, setNoParent] = useState(true);
-  const [treeSearch, setTreeSearch] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isDragOver, setIsDragOver] = useState(false);
-
-  const ALLOWED_EXTENSIONS = ['.txt', '.csv', '.tsv'];
-
-  const isValidFileType = (fileName: string): boolean => {
-    const lowerName = fileName.toLowerCase();
-    return ALLOWED_EXTENSIONS.some(ext => lowerName.endsWith(ext));
-  };
-
+  // Fetch tree data for parent selection
   const { data: treeData, isLoading: isTreeLoading } = useQuery({
     queryKey: ['datasets-tree', projectNumber],
     queryFn: () => projectApi.getProjectDatasetsTree(projectNumber),
     staleTime: 60_000,
   });
 
-  // Build set of valid dataset IDs from tree
-  const validIds = useMemo(() => {
-    if (!treeData?.tree) return new Set<number>();
-    return new Set(treeData.tree.map((node: any) => node.id));
-  }, [treeData]);
-
-  // Handle parent ID input change with validation
-  const handleParentIdChange = (value: string) => {
-    setParentIdInput(value);
-    setParentIdError(null);
-
-    if (!value.trim()) {
-      setParentId(null);
-      return;
-    }
-
-    const numValue = parseInt(value, 10);
-    if (isNaN(numValue)) {
-      setParentIdError('Please enter a valid number');
-      setParentId(null);
-      return;
-    }
-
-    if (!validIds.has(numValue)) {
-      setParentIdError(`Dataset #${numValue} not found`);
-      setParentId(null);
-      return;
-    }
-
-    setParentId(numValue);
-  };
-
-  // Handle selection from tree
-  const handleTreeSelect = (id: number | null) => {
-    setParentId(id);
-    setParentIdInput(id?.toString() ?? '');
-    setParentIdError(null);
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      if (!isValidFileType(selectedFile.name)) {
-        setError('Invalid file type. Please select a .txt, .csv, or .tsv file');
-        return;
-      }
-      setError(null);
-      setFile(selectedFile);
-      if (!datasetName) {
-        const nameWithoutExtension = selectedFile.name.replace(/\.(txt|csv|tsv)$/i, '');
-        setDatasetName(nameWithoutExtension);
-      }
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOver(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOver(false);
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOver(false);
-
-    const droppedFile = e.dataTransfer.files?.[0];
-    if (droppedFile) {
-      if (!isValidFileType(droppedFile.name)) {
-        setError('Invalid file type. Please select a .txt, .csv, or .tsv file');
-        return;
-      }
-      setError(null);
-      setFile(droppedFile);
-      if (!datasetName) {
-        const nameWithoutExtension = droppedFile.name.replace(/\.(txt|csv|tsv)$/i, '');
-        setDatasetName(nameWithoutExtension);
-      }
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-
-    if (!file) {
-      setError('Please select a dataset.tsv file');
-      return;
-    }
-
-    if (!datasetName.trim()) {
-      setError('Please enter a dataset name');
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-      await projectApi.importDataset(projectNumber, {
-        file,
-        name: datasetName.trim(),
-        parentId: noParent ? null : parentId,
-      });
-      alert('Mock import successful!');
-      router.push(`/projects/${projectNumber}/datasets`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Import failed');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  // Form state and handlers
+  const {
+    file,
+    datasetName,
+    setDatasetName,
+    parentId,
+    parentIdInput,
+    parentIdError,
+    noParent,
+    treeSearch,
+    setTreeSearch,
+    isSubmitting,
+    error,
+    isDragOver,
+    handleFileChange,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop,
+    handleParentIdChange,
+    handleTreeSelect,
+    handleNoParentChange,
+    handleSubmit,
+  } = useImportDatasetForm({ projectNumber, treeData });
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -427,14 +147,7 @@ export default function ImportDatasetPage() {
                     <input
                       type="checkbox"
                       checked={noParent}
-                      onChange={(e) => {
-                        setNoParent(e.target.checked);
-                        if (e.target.checked) {
-                          setParentId(null);
-                          setParentIdInput('');
-                          setParentIdError(null);
-                        }
-                      }}
+                      onChange={(e) => handleNoParentChange(e.target.checked)}
                       className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                     <span className="text-sm text-gray-600 whitespace-nowrap">No parent</span>
@@ -510,7 +223,7 @@ export default function ImportDatasetPage() {
               </button>
               <button
                 type="button"
-                onClick={() => router.back()}
+                onClick={() => history.back()}
                 className="px-4 py-2.5 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Cancel

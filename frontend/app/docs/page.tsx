@@ -20,11 +20,24 @@ export default function DocsHomePage() {
           <p className="text-gray-600 mb-4">
             Documentation to all backend API calls
           </p>
-          <a 
-            href="/docs/api" 
+          <a
+            href="/docs/api"
             className="inline-flex items-center text-blue-600 hover:text-blue-800"
           >
             View API Documentation →
+          </a>
+        </div>
+
+        <div className="border rounded-lg p-6 hover:shadow-md transition-shadow">
+          <h3 className="text-lg font-semibold mb-2">Hooks</h3>
+          <p className="text-gray-600 mb-4">
+            Custom React hooks documentation covering data fetching, URL state, pagination, and form handling.
+          </p>
+          <a
+            href="/docs/hooks"
+            className="inline-flex items-center text-blue-600 hover:text-blue-800"
+          >
+            View Hooks Documentation →
           </a>
         </div>
 
@@ -38,19 +51,6 @@ export default function DocsHomePage() {
             className="inline-flex items-center text-blue-600 hover:text-blue-800"
           >
             View Testing Documentation 
-          </a>
-        </div>
-        
-        <div className="border rounded-lg p-6 hover:shadow-md transition-shadow">
-          <h3 className="text-lg font-semibold mb-2">jsTree Integration</h3>
-          <p className="text-gray-600 mb-4">
-            Complete implementation guide for jsTree with Next.js, including SSR solutions and type definitions.
-          </p>
-          <a 
-            href="/docs/jstree" 
-            className="inline-flex items-center text-blue-600 hover:text-blue-800"
-          >
-            View jsTree Documentation →
           </a>
         </div>
 

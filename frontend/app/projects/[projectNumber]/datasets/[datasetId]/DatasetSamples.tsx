@@ -14,6 +14,11 @@ interface DatasetSamplesProps {
 export default function DatasetSamples({ samples, projectNumber, datasetId}: DatasetSamplesProps) {
   const router = useRouter();
 
+  // Check if any column has [Factor] postfix
+  const hasFactorColumns = samples.length > 0 &&
+    Array.from(new Set(samples.flatMap(sample => Object.keys(sample))))
+      .some(col => col.endsWith('[Factor]'));
+
   // TODO: move this part of the code to when you load the dataset info, not in the dataset samples
 //   if (isDatasetSamplesLoading && !datasetSamples) {
 //     return (
@@ -66,9 +71,14 @@ export default function DatasetSamples({ samples, projectNumber, datasetId}: Dat
           />
           
           {/* Action buttons */}
-          <button className="px-3 py-1 text-sm font-medium text-blue-700 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors">
-            📊 Edit Factors
-          </button>
+          {hasFactorColumns && (
+            <Link
+              href={`/projects/${projectNumber}/datasets/${datasetId}/factors/edit`}
+              className="px-3 py-1 text-sm font-medium text-blue-700 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors"
+            >
+              Edit Factors
+            </Link>
+          )}
           <button
             className="px-3 py-1 text-sm font-medium text-blue-700 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors"
             onClick={async () => {
@@ -78,11 +88,11 @@ export default function DatasetSamples({ samples, projectNumber, datasetId}: Dat
           >
             Data Folder
           </button>
-          <Link 
+          <Link
             href={`/projects/${projectNumber}/datasets/${datasetId}/samples/edit`}
             className="px-3 py-1 text-sm font-medium text-blue-700 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors"
           >
-            ✏️ Edit Table
+            Edit Table
           </Link>
         </div>
       </div>

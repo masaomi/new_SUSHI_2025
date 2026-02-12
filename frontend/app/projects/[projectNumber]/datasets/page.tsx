@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { projectApi } from '@/lib/api';
-import DatasetTree from '@/components/DatasetTree';
+import { usePagination, useSearch } from '@/lib/hooks';
+import DatasetTreeRcTree from '@/components/DatasetTreeRcTree';
 
 export default function ProjectDatasetsPage() {
   const params = useParams<{ projectNumber: string }>();
@@ -12,38 +13,29 @@ export default function ProjectDatasetsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  // View mode state (table | tree)
+  // View mode (table | tree)
   const viewMode = useMemo(() => searchParams.get('view') || 'table', [searchParams]);
   const [treeSearchQuery, setTreeSearchQuery] = useState('');
 
-  // URL-driven parameters
-  const page = useMemo(() => Number(searchParams.get('page') || 1), [searchParams]);
-  const per = useMemo(() => Number(searchParams.get('per') || 10), [searchParams]);
-  const qParam = useMemo(() => searchParams.get('q') || '', [searchParams]);
+  // Pagination and search via shared hooks
+  const { page, per, goToPage, changePerPage } = usePagination(10);
+  const { searchQuery, localQuery, setLocalQuery, onSubmit } = useSearch('q');
 
-  // Local input state for search box with debouncing
-  const [qLocal, setQLocal] = useState(qParam);
-  useEffect(() => { setQLocal(qParam); }, [qParam]);
+  // Local selection state (no need for URL sync)
+  const [selectedSet, setSelectedSet] = useState<Set<number>>(new Set());
 
-  // Debounced search - update URL after 300ms of no typing
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      const sp = new URLSearchParams(searchParams.toString());
-      if (qLocal) sp.set('q', qLocal); else sp.delete('q');
-      sp.set('page', '1'); // Reset to page 1 on new search
-      
-      // Only update URL if the search term actually changed
-      if (qLocal !== qParam) {
-        router.push(`?${sp.toString()}`);
-      }
-    }, 300);
-
-    return () => clearTimeout(timeoutId);
-  }, [qLocal, qParam, searchParams, router]);
+  const toggleSelect = (id: number) => {
+    setSelectedSet(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['datasets', projectNumber, { q: qParam, page, per }],
-    queryFn: () => projectApi.getProjectDatasets(projectNumber, { q: qParam, page, per }),
+    queryKey: ['datasets', projectNumber, { q: searchQuery, page, per }],
+    queryFn: () => projectApi.getProjectDatasets(projectNumber, { q: searchQuery, page, per }),
     placeholderData: keepPreviousData,
     staleTime: 60_000,
   });
@@ -56,41 +48,6 @@ export default function ProjectDatasetsPage() {
     staleTime: 60_000,
   });
 
-  const selectedSet = useMemo(() => {
-    const sel = searchParams.get('selected');
-    return new Set((sel ? sel.split(',') : []).map((s) => Number(s)));
-  }, [searchParams]);
-
-  const updateSelectedInUrl = (ids: Set<number>) => {
-    const sp = new URLSearchParams(searchParams.toString());
-    if (ids.size > 0) sp.set('selected', Array.from(ids).join(',')); else sp.delete('selected');
-    router.push(`?${sp.toString()}`);
-  };
-
-  const toggleSelect = (id: number) => {
-    const ids = new Set(selectedSet);
-    if (ids.has(id)) ids.delete(id); else ids.add(id);
-    updateSelectedInUrl(ids);
-  };
-
-  const onSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Search is now handled by debounce, but keep form for accessibility
-  };
-
-  const onChangePer = (nextPer: number) => {
-    const sp = new URLSearchParams(searchParams.toString());
-    sp.set('per', String(nextPer));
-    sp.set('page', '1');
-    router.push(`?${sp.toString()}`);
-  };
-
-  const goToPage = (nextPage: number) => {
-    const sp = new URLSearchParams(searchParams.toString());
-    sp.set('page', String(nextPage));
-    router.push(`?${sp.toString()}`);
-  };
-
   const downloadAllDatasets = async () => {
     await projectApi.getDownloadAllDatasets(projectNumber);
     alert(`Called mock getDownloadAllDataset`);
@@ -100,116 +57,7 @@ export default function ProjectDatasetsPage() {
     alert(`Called mock deleteDatasets(${datasets})`)
   }
 
-  if (isLoading) return (
-    <div className="container mx-auto px-6 py-8">
-      <div className="animate-pulse">
-        {/* Title skeleton */}
-        <div className="h-8 bg-gray-200 rounded w-64 mb-6"></div>
-        
-        {/* Search controls skeleton */}
-        <div className="mb-4 flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <div className="h-4 bg-gray-200 rounded w-12"></div>
-            <div className="h-8 bg-gray-200 rounded w-16"></div>
-            <div className="h-4 bg-gray-200 rounded w-16"></div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="h-10 bg-gray-200 rounded w-48"></div>
-            <div className="h-10 bg-gray-200 rounded w-20"></div>
-          </div>
-        </div>
-
-        {/* Table skeleton */}
-        <div className="overflow-x-auto">
-          <div className="min-w-full border rounded-lg">
-            {/* Table header skeleton */}
-            <div className="bg-gray-100 border-b">
-              <div className="flex">
-                <div className="p-2 border-r flex-shrink-0 w-12">
-                  <div className="h-4 bg-gray-300 rounded w-4 mx-auto"></div>
-                </div>
-                <div className="p-2 border-r flex-1 min-w-16">
-                  <div className="h-4 bg-gray-300 rounded w-8"></div>
-                </div>
-                <div className="p-2 border-r flex-1 min-w-32">
-                  <div className="h-4 bg-gray-300 rounded w-12"></div>
-                </div>
-                <div className="p-2 border-r flex-1 min-w-24">
-                  <div className="h-4 bg-gray-300 rounded w-16"></div>
-                </div>
-                <div className="p-2 border-r flex-1 min-w-20">
-                  <div className="h-4 bg-gray-300 rounded w-14"></div>
-                </div>
-                <div className="p-2 border-r flex-1 min-w-20">
-                  <div className="h-4 bg-gray-300 rounded w-16"></div>
-                </div>
-                <div className="p-2 border-r flex-1 min-w-20">
-                  <div className="h-4 bg-gray-300 rounded w-14"></div>
-                </div>
-                <div className="p-2 border-r flex-1 min-w-16">
-                  <div className="h-4 bg-gray-300 rounded w-8"></div>
-                </div>
-                <div className="p-2 border-r flex-1 min-w-24">
-                  <div className="h-4 bg-gray-300 rounded w-14"></div>
-                </div>
-                <div className="p-2 flex-1 min-w-24">
-                  <div className="h-4 bg-gray-300 rounded w-18"></div>
-                </div>
-              </div>
-            </div>
-            
-            {/* Table rows skeleton */}
-            {[...Array(10)].map((_, i) => (
-              <div key={i} className={`border-b ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
-                <div className="flex">
-                  <div className="p-2 border-r flex-shrink-0 w-12">
-                    <div className="h-4 bg-gray-200 rounded w-4 mx-auto"></div>
-                  </div>
-                  <div className="p-2 border-r flex-1 min-w-16">
-                    <div className="h-4 bg-gray-200 rounded w-12"></div>
-                  </div>
-                  <div className="p-2 border-r flex-1 min-w-32">
-                    <div className="h-4 bg-gray-200 rounded w-24"></div>
-                  </div>
-                  <div className="p-2 border-r flex-1 min-w-24">
-                    <div className="h-4 bg-gray-200 rounded w-20"></div>
-                  </div>
-                  <div className="p-2 border-r flex-1 min-w-20">
-                    <div className="h-4 bg-gray-200 rounded w-16"></div>
-                  </div>
-                  <div className="p-2 border-r flex-1 min-w-20">
-                    <div className="h-4 bg-gray-200 rounded w-12"></div>
-                  </div>
-                  <div className="p-2 border-r flex-1 min-w-20">
-                    <div className="h-4 bg-gray-200 rounded w-8"></div>
-                  </div>
-                  <div className="p-2 border-r flex-1 min-w-16">
-                    <div className="h-4 bg-gray-200 rounded w-16"></div>
-                  </div>
-                  <div className="p-2 border-r flex-1 min-w-24">
-                    <div className="h-4 bg-gray-200 rounded w-20"></div>
-                  </div>
-                  <div className="p-2 flex-1 min-w-24">
-                    <div className="h-4 bg-gray-200 rounded w-16"></div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Pagination skeleton */}
-        <div className="mt-4 flex items-center justify-between gap-2">
-          <div className="h-4 bg-gray-200 rounded w-48"></div>
-          <div className="flex items-center gap-2">
-            <div className="h-8 bg-gray-200 rounded w-16"></div>
-            <div className="h-4 bg-gray-200 rounded w-24"></div>
-            <div className="h-8 bg-gray-200 rounded w-16"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  if (isLoading) return <DatasetsPageSkeleton />;
   
   if (error) return (
     <div className="container mx-auto px-6 py-8">
@@ -241,6 +89,7 @@ export default function ProjectDatasetsPage() {
               const sp = new URLSearchParams(searchParams.toString());
               sp.delete('view');
               router.push(`?${sp.toString()}`);
+              setSelectedSet(new Set());
             }}
             className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
               viewMode === 'table'
@@ -255,6 +104,7 @@ export default function ProjectDatasetsPage() {
               const sp = new URLSearchParams(searchParams.toString());
               sp.set('view', 'tree');
               router.push(`?${sp.toString()}`);
+              setSelectedSet(new Set());
             }}
             className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
               viewMode === 'tree'
@@ -316,10 +166,10 @@ export default function ProjectDatasetsPage() {
           {isTreeLoading && <div className="p-6">Loading tree...</div>}
           {treeError && <div className="p-6 text-red-600">Failed to load tree</div>}
           {treeData && (
-            <DatasetTree
+            <DatasetTreeRcTree
               treeNodes={treeData.tree}
               selectedIds={selectedSet}
-              onSelectionChange={updateSelectedInUrl}
+              onSelectionChange={setSelectedSet}
               projectNumber={projectNumber}
               searchQuery={treeSearchQuery}
             />
@@ -327,16 +177,13 @@ export default function ProjectDatasetsPage() {
         </div>
       ) : (
         <>
-          {isLoading && <div className="p-6">Loading datasets...</div>}
-          {error && <div className="p-6 text-red-600">Failed to load datasets</div>}
-
           {/* Search and pagination controls immediately before table */}
-          <form onSubmit={onSearch} className="mb-3 flex items-center gap-4">
+          <form onSubmit={onSubmit} className="mb-3 flex items-center gap-4">
             <div className="flex items-center gap-2">
               <label className="text-sm text-gray-600">Show</label>
               <select
                 value={per}
-                onChange={(e) => onChangePer(Number(e.target.value))}
+                onChange={(e) => changePerPage(Number(e.target.value))}
                 className="border rounded px-2 py-1 text-sm"
               >
                 <option value={10}>10</option>
@@ -348,11 +195,11 @@ export default function ProjectDatasetsPage() {
             </div>
 
             <div className="flex items-center gap-2">
-              <input 
-                value={qLocal} 
-                onChange={(e) => setQLocal(e.target.value)} 
-                placeholder="Search name..." 
-                className="border rounded px-3 py-1.5 text-sm" 
+              <input
+                value={localQuery}
+                onChange={(e) => setLocalQuery(e.target.value)}
+                placeholder="Search name..."
+                className="border rounded px-3 py-1.5 text-sm"
               />
               <div className="text-xs text-gray-500">Search updates automatically</div>
             </div>
@@ -367,13 +214,15 @@ export default function ProjectDatasetsPage() {
                       type="checkbox"
                       checked={allSelectedOnPage}
                       onChange={() => {
-                        const next = new Set(selectedSet);
-                        if (allSelectedOnPage) {
-                          allIds.forEach((id) => next.delete(id));
-                        } else {
-                          allIds.forEach((id) => next.add(id));
-                        }
-                        updateSelectedInUrl(next);
+                        setSelectedSet(prev => {
+                          const next = new Set(prev);
+                          if (allSelectedOnPage) {
+                            allIds.forEach((id) => next.delete(id));
+                          } else {
+                            allIds.forEach((id) => next.add(id));
+                          }
+                          return next;
+                        });
                       }}
                     />
                   </th>
@@ -447,5 +296,115 @@ export default function ProjectDatasetsPage() {
   );
 }
 
+function DatasetsPageSkeleton() {
+  return (
+    <div className="container mx-auto px-6 py-8">
+      <div className="animate-pulse">
+        {/* Title skeleton */}
+        <div className="h-8 bg-gray-200 rounded w-64 mb-6"></div>
 
+        {/* Search controls skeleton */}
+        <div className="mb-4 flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className="h-4 bg-gray-200 rounded w-12"></div>
+            <div className="h-8 bg-gray-200 rounded w-16"></div>
+            <div className="h-4 bg-gray-200 rounded w-16"></div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="h-10 bg-gray-200 rounded w-48"></div>
+            <div className="h-10 bg-gray-200 rounded w-20"></div>
+          </div>
+        </div>
 
+        {/* Table skeleton */}
+        <div className="overflow-x-auto">
+          <div className="min-w-full border rounded-lg">
+            {/* Table header skeleton */}
+            <div className="bg-gray-100 border-b">
+              <div className="flex">
+                <div className="p-2 border-r flex-shrink-0 w-12">
+                  <div className="h-4 bg-gray-300 rounded w-4 mx-auto"></div>
+                </div>
+                <div className="p-2 border-r flex-1 min-w-16">
+                  <div className="h-4 bg-gray-300 rounded w-8"></div>
+                </div>
+                <div className="p-2 border-r flex-1 min-w-32">
+                  <div className="h-4 bg-gray-300 rounded w-12"></div>
+                </div>
+                <div className="p-2 border-r flex-1 min-w-24">
+                  <div className="h-4 bg-gray-300 rounded w-16"></div>
+                </div>
+                <div className="p-2 border-r flex-1 min-w-20">
+                  <div className="h-4 bg-gray-300 rounded w-14"></div>
+                </div>
+                <div className="p-2 border-r flex-1 min-w-20">
+                  <div className="h-4 bg-gray-300 rounded w-16"></div>
+                </div>
+                <div className="p-2 border-r flex-1 min-w-20">
+                  <div className="h-4 bg-gray-300 rounded w-14"></div>
+                </div>
+                <div className="p-2 border-r flex-1 min-w-16">
+                  <div className="h-4 bg-gray-300 rounded w-8"></div>
+                </div>
+                <div className="p-2 border-r flex-1 min-w-24">
+                  <div className="h-4 bg-gray-300 rounded w-14"></div>
+                </div>
+                <div className="p-2 flex-1 min-w-24">
+                  <div className="h-4 bg-gray-300 rounded w-18"></div>
+                </div>
+              </div>
+            </div>
+
+            {/* Table rows skeleton */}
+            {[...Array(10)].map((_, i) => (
+              <div key={i} className={`border-b ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                <div className="flex">
+                  <div className="p-2 border-r flex-shrink-0 w-12">
+                    <div className="h-4 bg-gray-200 rounded w-4 mx-auto"></div>
+                  </div>
+                  <div className="p-2 border-r flex-1 min-w-16">
+                    <div className="h-4 bg-gray-200 rounded w-12"></div>
+                  </div>
+                  <div className="p-2 border-r flex-1 min-w-32">
+                    <div className="h-4 bg-gray-200 rounded w-24"></div>
+                  </div>
+                  <div className="p-2 border-r flex-1 min-w-24">
+                    <div className="h-4 bg-gray-200 rounded w-20"></div>
+                  </div>
+                  <div className="p-2 border-r flex-1 min-w-20">
+                    <div className="h-4 bg-gray-200 rounded w-16"></div>
+                  </div>
+                  <div className="p-2 border-r flex-1 min-w-20">
+                    <div className="h-4 bg-gray-200 rounded w-12"></div>
+                  </div>
+                  <div className="p-2 border-r flex-1 min-w-20">
+                    <div className="h-4 bg-gray-200 rounded w-8"></div>
+                  </div>
+                  <div className="p-2 border-r flex-1 min-w-16">
+                    <div className="h-4 bg-gray-200 rounded w-16"></div>
+                  </div>
+                  <div className="p-2 border-r flex-1 min-w-24">
+                    <div className="h-4 bg-gray-200 rounded w-20"></div>
+                  </div>
+                  <div className="p-2 flex-1 min-w-24">
+                    <div className="h-4 bg-gray-200 rounded w-16"></div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Pagination skeleton */}
+        <div className="mt-4 flex items-center justify-between gap-2">
+          <div className="h-4 bg-gray-200 rounded w-48"></div>
+          <div className="flex items-center gap-2">
+            <div className="h-8 bg-gray-200 rounded w-16"></div>
+            <div className="h-4 bg-gray-200 rounded w-24"></div>
+            <div className="h-8 bg-gray-200 rounded w-16"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

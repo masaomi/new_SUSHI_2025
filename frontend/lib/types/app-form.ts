@@ -10,6 +10,7 @@ export interface AppFormField {
   selected?: any;
   section_header?: string;
   horizontal_rule?: boolean;
+  disabled?: boolean;
 }
 
 export interface AppFormResponse {

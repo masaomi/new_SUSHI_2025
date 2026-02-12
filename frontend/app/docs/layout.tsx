@@ -61,16 +61,24 @@ export default function DocsLayout({
                     </Link>
                   </li>
                   <li>
-                    <Link 
-                      href="/docs/api" 
+                    <Link
+                      href="/docs/api"
                       className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
                     >
                       API
                     </Link>
                   </li>
                   <li>
-                    <Link 
-                      href="/docs/types" 
+                    <Link
+                      href="/docs/hooks"
+                      className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+                    >
+                      Hooks
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/docs/types"
                       className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
                     >
                       Type System
@@ -82,14 +90,6 @@ export default function DocsLayout({
                       className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
                     >
                       Testing
-                    </Link>
-                  </li>
-                  <li>
-                    <Link 
-                      href="/docs/jstree" 
-                      className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
-                    >
-                      jsTree Integration 
                     </Link>
                   </li>
                   <li>
@@ -130,14 +130,6 @@ export default function DocsLayout({
                       className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
                     >
                       Hands on Table Integration
-                    </Link>
-                  </li>
-                  <li>
-                    <Link 
-                      href="/docs/linting" 
-                      className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
-                    >
-                      Linting System
                     </Link>
                   </li>
                   <li>
