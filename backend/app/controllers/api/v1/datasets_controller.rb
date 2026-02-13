@@ -194,6 +194,7 @@ module Api
       end
 
       # Determine runnable applications grouped by category, based on headers
+      # Categories and applications are sorted alphabetically, with 'Misc' at the end
       def runnable_applications(dataset)
         headers = dataset.headers
 
@@ -201,10 +202,16 @@ module Api
           .select { |app| app.required_columns_satisfied_by?(headers) }
           .group_by(&:analysis_category)
 
-        applications_by_category.map do |category, apps|
+        # Sort by category name alphabetically, with 'Misc' (nil category) at the end
+        sorted_categories = applications_by_category.keys.compact.sort
+        sorted_categories << nil if applications_by_category.key?(nil)
+
+        sorted_categories.map do |category|
+          apps = applications_by_category[category]
           {
             category: category || 'Misc',
-            apps: apps.map do |app|
+            # Sort applications alphabetically by class_name
+            apps: apps.sort_by(&:class_name).map do |app|
               {
                 class_name: app.class_name,
                 description: app.description
