@@ -17,6 +17,7 @@ frontend/.next/
 frontend/out/
 frontend/.env*
 frontend/*.tsbuildinfo
+frontend/pnpm-lock.yaml
 
 # OS
 .DS_Store
