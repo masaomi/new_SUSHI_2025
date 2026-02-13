@@ -3,7 +3,9 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
-  allowedDevOrigins: ['fgcz-h-083.fgcz-net.unizh.ch'],
+  experimental: {
+    serverComponentsExternalPackages: [],
+  },
   async headers() {
     return [
       {
