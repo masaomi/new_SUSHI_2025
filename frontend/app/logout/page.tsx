@@ -2,7 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { apiClient } from '@/lib/api';
+import { authApi } from '@/lib/api';
 
 export default function LogoutPage() {
   const router = useRouter();
@@ -11,7 +11,7 @@ export default function LogoutPage() {
     const performLogout = async () => {
       try {
         // Call logout API to invalidate token on server side (if needed)
-        await apiClient.logout();
+        authApi.logout();
         
         // Clear JWT token from localStorage
         if (typeof window !== 'undefined') {

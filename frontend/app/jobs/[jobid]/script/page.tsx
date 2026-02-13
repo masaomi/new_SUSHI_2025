@@ -1,90 +1,47 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import Link from 'next/link';
+import { useState, useEffect } from 'react';
+import { jobApi, projectApi } from '@/lib/api';
 import Breadcrumbs from '@/lib/ui/Breadcrumbs';
 
 
 export default function JobScriptPage() {
   const params = useParams<{ jobid: string }>();
   const jobId = params.jobid;
+  const [script, setScript] = useState<string>('');
+  const [projectId, setProjectId] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const hardcodedScript = `#!/usr/bin/env python3
-"""
-Data Processing Script - Customer Analytics Q3
-Job ID: ${jobId}
-Author: rdomi
-Created: 2024-10-08
-"""
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const [scriptContent, projectData] = await Promise.all([
+          jobApi.getJobScript(Number(jobId)),
+          projectApi.getProjectIdFromJob(Number(jobId))
+        ]);
+        setScript(scriptContent);
+        setProjectId(projectData.projectId);
+      } catch (err) {
+        setError('Failed to load script content');
+        console.error('Error loading script:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-import pandas as pd
-import numpy as np
-from datetime import datetime
-import logging
+    if (jobId) {
+      loadData();
+    }
+  }, [jobId]);
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-
-def load_data(file_path):
-    """Load customer data from CSV file"""
-    logger.info(f"Loading data from {file_path}")
-    try:
-        df = pd.read_csv(file_path)
-        logger.info(f"Successfully loaded {len(df)} records")
-        return df
-    except Exception as e:
-        logger.error(f"Failed to load data: {e}")
-        raise
-
-def process_analytics(df):
-    """Process customer analytics data"""
-    logger.info("Starting analytics processing")
-    
-    # Calculate customer metrics
-    df['total_spent'] = df['purchase_amount'] * df['quantity']
-    df['customer_segment'] = pd.cut(df['total_spent'], 
-                                   bins=[0, 100, 500, 1000, np.inf], 
-                                   labels=['Bronze', 'Silver', 'Gold', 'Platinum'])
-    
-    # Generate summary statistics
-    summary = df.groupby('customer_segment').agg({
-        'total_spent': ['count', 'mean', 'sum'],
-        'customer_id': 'nunique'
-    }).round(2)
-    
-    logger.info("Analytics processing completed")
-    return df, summary
-
-def main():
-    """Main execution function"""
-    logger.info(f"Starting job {jobId} - Customer Analytics Q3")
-    
-    try:
-        # Load and process data
-        data = load_data('/data/customer_data_q3.csv')
-        processed_data, summary = process_analytics(data)
-        
-        # Save results
-        output_path = f'/output/analytics_results_{jobId}.csv'
-        processed_data.to_csv(output_path, index=False)
-        
-        logger.info(f"Results saved to {output_path}")
-        logger.info("Job completed successfully")
-        
-    except Exception as e:
-        logger.error(f"Job failed: {e}")
-        raise
-
-if __name__ == "__main__":
-    main()`;
-    const projectNumber = 12312;
   return (
     <div className="container mx-auto px-6 py-8">
       <Breadcrumbs items={[
-        { label: 'Projects', href: '/projects' },
-        { label: `Project ${projectNumber}`, href: `/projects/${projectNumber}` },
-        { label: 'Jobs', href: `/projects/${projectNumber}/jobs` },
+        { label: `Project ${projectId}`, href: `/projects/${projectId}` },
+        { label: 'Jobs', href: `/projects/${projectId}/jobs` },
         { label: `Job ${jobId}` },
         { label: "Script", active: true }
       ]} />
@@ -105,9 +62,20 @@ if __name__ == "__main__":
           <p className="text-sm text-gray-500">data_processing.py</p>
         </div>
         <div className="p-0">
-          <pre style={{wordWrap: 'break-word', whiteSpace: 'pre-wrap'}} className="text-sm text-gray-900 p-4 overflow-x-auto">
-            {hardcodedScript}
-          </pre>
+          {loading ? (
+            <div className="flex items-center justify-center p-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+              <span className="ml-3 text-gray-600">Loading script...</span>
+            </div>
+          ) : error ? (
+            <div className="p-4 text-red-600">
+              <p>{error}</p>
+            </div>
+          ) : (
+            <pre style={{wordWrap: 'break-word', whiteSpace: 'pre-wrap'}} className="text-sm text-gray-900 p-4 overflow-x-auto">
+              {script}
+            </pre>
+          )}
         </div>
       </div>
     </div>

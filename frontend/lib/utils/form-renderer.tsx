@@ -5,10 +5,13 @@ interface FieldRendererProps {
   field: AppFormField;
   value: any;
   onChange: (fieldName: string, value: any) => void;
+  onBlur?: (fieldName: string) => void;
+  onKeyDown?: (e: React.KeyboardEvent, fieldName: string) => void;
 }
 
-export const renderFormField = ({ field, value, onChange }: FieldRendererProps): JSX.Element => {
+export const renderFormField = ({ field, value, onChange, onBlur, onKeyDown }: FieldRendererProps): JSX.Element => {
   const baseClasses = "px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500";
+  const disabledClasses = field.disabled ? "bg-gray-100 text-gray-500 cursor-not-allowed" : "";
   
   // Handle section headers
   if (field.type === 'section') {
@@ -32,10 +35,13 @@ export const renderFormField = ({ field, value, onChange }: FieldRendererProps):
           name={field.name}
           value={value !== undefined ? value : field.default_value || ''}
           onChange={(e) => onChange(field.name, e.target.value)}
-          className={`${baseClasses} bg-white w-full`}
+          onBlur={() => onBlur?.(field.name)}
+          onKeyDown={(e) => onKeyDown?.(e, field.name)}
+          disabled={field.disabled}
+          className={`${baseClasses} ${disabledClasses} bg-white w-full`}
         >
-          {field.options?.map((option) => (
-            <option key={option} value={option}>
+          {field.options?.map((option, index) => (
+            <option key={index} value={option}>
               {option}
             </option>
           ))}
@@ -53,11 +59,14 @@ export const renderFormField = ({ field, value, onChange }: FieldRendererProps):
             const selectedValues = Array.from(e.target.selectedOptions, option => option.value);
             onChange(field.name, selectedValues);
           }}
-          className={`${baseClasses} bg-white w-full`}
+          onBlur={() => onBlur?.(field.name)}
+          onKeyDown={(e) => onKeyDown?.(e, field.name)}
+          disabled={field.disabled}
+          className={`${baseClasses} ${disabledClasses} bg-white w-full`}
           size={Math.min(field.options?.length || 3, 5)}
         >
-          {field.options?.map((option) => (
-            <option key={option} value={option}>
+          {field.options?.map((option, index) => (
+            <option key={index} value={option}>
               {option}
             </option>
           ))}
@@ -73,9 +82,12 @@ export const renderFormField = ({ field, value, onChange }: FieldRendererProps):
             name={field.name}
             checked={value !== undefined ? Boolean(value) : Boolean(field.default_value)}
             onChange={(e) => onChange(field.name, e.target.checked)}
-            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+            onBlur={() => onBlur?.(field.name)}
+            onKeyDown={(e) => onKeyDown?.(e, field.name)}
+            disabled={field.disabled}
+            className={`w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 ${field.disabled ? 'cursor-not-allowed opacity-50' : ''}`}
           />
-          <label htmlFor={field.name} className="ml-2 text-sm text-gray-700">
+          <label htmlFor={field.name} className={`ml-2 text-sm ${field.disabled ? 'text-gray-400' : 'text-gray-700'}`}>
             {field.description || 'Enable option'}
           </label>
         </div>
@@ -87,10 +99,24 @@ export const renderFormField = ({ field, value, onChange }: FieldRendererProps):
           type="number"
           id={field.name}
           name={field.name}
-          value={value !== undefined ? value : field.default_value || ''}
+          value={value !== undefined && value !== '' ? value : ''}
           step="1"
-          onChange={(e) => onChange(field.name, parseInt(e.target.value) || 0)}
-          className={`${baseClasses} w-full`}
+          onChange={(e) => {
+            const val = e.target.value;
+            // Allow empty string during editing, otherwise parse as integer
+            onChange(field.name, val === '' ? '' : parseInt(val, 10));
+          }}
+          onBlur={(e) => {
+            // On blur, ensure we have a valid number (default to 0 if empty)
+            const val = e.target.value;
+            if (val === '' || isNaN(parseInt(val, 10))) {
+              onChange(field.name, field.default_value !== undefined ? parseInt(String(field.default_value), 10) : 0);
+            }
+            onBlur?.(field.name);
+          }}
+          onKeyDown={(e) => onKeyDown?.(e, field.name)}
+          disabled={field.disabled}
+          className={`${baseClasses} ${disabledClasses} w-full`}
         />
       );
 
@@ -101,10 +127,24 @@ export const renderFormField = ({ field, value, onChange }: FieldRendererProps):
           type="number"
           id={field.name}
           name={field.name}
-          value={value !== undefined ? value : field.default_value || ''}
+          value={value !== undefined && value !== '' ? value : ''}
           step="any"
-          onChange={(e) => onChange(field.name, parseFloat(e.target.value) || 0)}
-          className={`${baseClasses} w-full`}
+          onChange={(e) => {
+            const val = e.target.value;
+            // Allow empty string during editing, otherwise parse as float
+            onChange(field.name, val === '' ? '' : parseFloat(val));
+          }}
+          onBlur={(e) => {
+            // On blur, ensure we have a valid number (default to 0 if empty)
+            const val = e.target.value;
+            if (val === '' || isNaN(parseFloat(val))) {
+              onChange(field.name, field.default_value !== undefined ? parseFloat(String(field.default_value)) : 0);
+            }
+            onBlur?.(field.name);
+          }}
+          onKeyDown={(e) => onKeyDown?.(e, field.name)}
+          disabled={field.disabled}
+          className={`${baseClasses} ${disabledClasses} w-full`}
         />
       );
 
@@ -117,7 +157,10 @@ export const renderFormField = ({ field, value, onChange }: FieldRendererProps):
           name={field.name}
           value={value !== undefined ? value : field.default_value || ''}
           onChange={(e) => onChange(field.name, e.target.value)}
-          className={`${baseClasses} w-full`}
+          onBlur={() => onBlur?.(field.name)}
+          onKeyDown={(e) => onKeyDown?.(e, field.name)}
+          disabled={field.disabled}
+          className={`${baseClasses} ${disabledClasses} w-full`}
         />
       );
   }
@@ -127,30 +170,32 @@ interface FormFieldComponentProps {
   field: AppFormField;
   value: any;
   onChange: (fieldName: string, value: any) => void;
+  onBlur?: (fieldName: string) => void;
+  onKeyDown?: (e: React.KeyboardEvent, fieldName: string) => void;
 }
 
-export const FormFieldComponent: React.FC<FormFieldComponentProps> = ({ field, value, onChange }) => {
+export const FormFieldComponent: React.FC<FormFieldComponentProps> = ({ field, value, onChange, onBlur, onKeyDown }) => {
   // Handle section headers - they don't need labels
   if (field.type === 'section') {
-    return <>{renderFormField({ field, value, onChange })}</>;
+    return <>{renderFormField({ field, value, onChange, onBlur, onKeyDown })}</>;
   }
 
   // Handle boolean fields - they have their own label inline
   if (field.type === 'boolean') {
-    return <div>{renderFormField({ field, value, onChange })}</div>;
+    return <div>{renderFormField({ field, value, onChange, onBlur, onKeyDown })}</div>;
   }
 
   return (
     <div>
-      <label htmlFor={field.name} className="block text-sm font-medium text-gray-700 mb-2">
+      <label htmlFor={field.name} className={`block text-sm font-medium mb-2 ${field.disabled ? 'text-gray-400' : 'text-gray-700'}`}>
         {field.name}
         {field.description && (
-          <span className="text-gray-500 text-xs block font-normal">
+          <span className={`text-xs block font-normal ${field.disabled ? 'text-gray-400' : 'text-gray-500'}`}>
             {field.description}
           </span>
         )}
       </label>
-      {renderFormField({ field, value, onChange })}
+      {renderFormField({ field, value, onChange, onBlur, onKeyDown })}
     </div>
   );
 };

@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useMemo } from 'react';
+import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
-import { jobApi } from '@/lib/api/jobs';
+import { projectApi } from '@/lib/api/projects';
+import { usePagination, useSearch, useJobsFilters } from '@/lib/hooks';
 
 const StatusBadge = ({ status }: { status: string }) => {
   const getStatusStyles = (status: string) => {
@@ -69,97 +70,47 @@ const formatDuration = (startTime: string, endTime?: string) => {
 export default function ProjectJobsPage() {
   const params = useParams<{ projectNumber: string }>();
   const projectNumber = Number(params.projectNumber);
-  const searchParams = useSearchParams();
-  const router = useRouter();
 
-  // URL-driven parameters
-  const page = useMemo(() => Number(searchParams.get('page') || 1), [searchParams]);
-  const per = useMemo(() => Number(searchParams.get('per') || 25), [searchParams]);
-  const qParam = useMemo(() => searchParams.get('q') || '', [searchParams]);
+  // Pagination with shared hook
+  const { page, per, goToPage, changePerPage } = usePagination();
+  
+  // User search with shared hook
+  const { searchQuery: userParam, localQuery: userLocal, setLocalQuery: setUserLocal, onSubmit: onSubmit } = useSearch('user');
+  
+  // Jobs filters with custom hook
+  const { 
+    filters: { status: statusParam, from_date: fromDateParam, to_date: toDateParam },
+    localFilters: { status: statusLocal, from_date: fromDateLocal, to_date: toDateLocal },
+    setStatusLocal,
+    setFromDateLocal,
+    setToDateLocal,
+    clearFilters
+  } = useJobsFilters();
 
-  // Local input state for search box
-  const [qLocal, setQLocal] = useState(qParam);
-  useEffect(() => { setQLocal(qParam); }, [qParam]);
 
-  // Debounced search - update URL after 300ms of no typing
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      const sp = new URLSearchParams(searchParams.toString());
-      if (qLocal) sp.set('q', qLocal); else sp.delete('q');
-      sp.set('page', '1'); // Reset to page 1 on new search
-      
-      // Only update URL if the search term actually changed
-      if (qLocal !== qParam) {
-        router.push(`?${sp.toString()}`);
-      }
-    }, 300);
-
-    return () => clearTimeout(timeoutId);
-  }, [qLocal, qParam, searchParams, router]);
+  // Build API parameters for backend filtering
+  const apiParams = useMemo(() => {
+    const params: any = { page, per };
+    if (statusParam) params.status = statusParam;
+    if (userParam) params.user = userParam;
+    if (fromDateParam) params.from_date = fromDateParam;
+    if (toDateParam) params.to_date = toDateParam;
+    return params;
+  }, [page, per, statusParam, userParam, fromDateParam, toDateParam]);
 
   const { data: jobsData, isLoading, error } = useQuery({
-    queryKey: ['jobs', projectNumber],
-    queryFn: () => jobApi.getJobsList(projectNumber),
+    queryKey: ['jobs', projectNumber, apiParams],
+    queryFn: () => projectApi.getProjectJobs(projectNumber, apiParams),
     staleTime: 30_000,
   });
 
-  // Duplicate jobs 50 times each to get 150 total jobs
-  const allJobs = useMemo(() => {
-    if (!jobsData?.jobs) return [];
-    const duplicatedJobs: any[] = [];
-    for (let i = 0; i < 50; i++) {
-      jobsData.jobs.forEach((job, index) => {
-        duplicatedJobs.push({
-          ...job,
-          id: 1000 + (i * 3) + index + 1,
-          dataset: {
-            ...job.dataset,
-            name: `${job.dataset.name} #${i + 1}`,
-            id: job.dataset.id + i
-          }
-        });
-      });
-    }
-    return duplicatedJobs;
-  }, [jobsData]);
-
-  // Filter jobs based on search query (dataset name)
-  const filteredJobs = useMemo(() => {
-    if (!qParam) return allJobs;
-    return allJobs.filter(job => 
-      job.dataset.name.toLowerCase().includes(qParam.toLowerCase())
-    );
-  }, [allJobs, qParam]);
-
-  // Paginate filtered jobs
-  const paginatedJobs = useMemo(() => {
-    const startIndex = (page - 1) * per;
-    const endIndex = startIndex + per;
-    return filteredJobs.slice(startIndex, endIndex);
-  }, [filteredJobs, page, per]);
-
-  const total = filteredJobs.length;
+  // Use backend pagination and filtering data directly
+  const jobs = jobsData?.jobs || [];
+  const total = jobsData?.total_count || 0;
   const totalPages = Math.max(1, Math.ceil(total / per));
   const startIndex = (page - 1) * per + Math.min(1, total);
   const endIndex = Math.min(page * per, total);
 
-  const onSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Search is now handled by debounce, but keep form for accessibility
-  };
-
-  const onChangePer = (nextPer: number) => {
-    const sp = new URLSearchParams(searchParams.toString());
-    sp.set('per', String(nextPer));
-    sp.set('page', '1');
-    router.push(`?${sp.toString()}`);
-  };
-
-  const goToPage = (nextPage: number) => {
-    const sp = new URLSearchParams(searchParams.toString());
-    sp.set('page', String(nextPage));
-    router.push(`?${sp.toString()}`);
-  };
 
   if (isLoading) return (
     <div className="container mx-auto px-6 py-8">
@@ -202,24 +153,27 @@ export default function ProjectJobsPage() {
     </div>
   );
 
-  const jobs = paginatedJobs;
+
+  // Status options for dropdown (extracted from StatusBadge)
+  const statusOptions = [
+    { value: '', label: 'All' },
+    { value: 'COMPLETED', label: 'Completed' },
+    { value: 'RUNNING', label: 'Running' },
+    { value: 'FAILED', label: 'Failed' },
+    { value: 'CANCELLED+', label: 'Cancelled' },
+    { value: 'CREATED', label: 'Created' },
+    { value: 'SUBMITTED', label: 'Submitted' },
+    { value: 'PENDING', label: 'Pending' },
+    // { value: 'SCRIPT_NOT_FOUND', label: 'Script Not Found' },
+    // { value: 'PARAMS_ERROR', label: 'Params Error' },
+    // { value: 'COPY_LOGS_FAILED', label: 'Copy Logs Failed' },
+    // { value: 'FAILED_SCRIPT_NOT_FOUND', label: 'Failed Script Not Found' },
+    // { value: 'FAILED_PARAMS_ERROR', label: 'Failed Params Error' },
+    // { value: 'SLURM_ERROR_ON_SUBMIT', label: 'Slurm Error On Submit' }
+  ];
 
   return (
     <div className="container mx-auto px-6 py-8">
-      {/* Breadcrumb navigation */}
-      <nav className="mb-6" aria-label="Breadcrumb">
-        <ol className="flex items-center space-x-2 text-sm text-gray-500">
-          <li>
-            <Link href="/projects" className="hover:text-gray-700">Projects</Link>
-          </li>
-          <li>/</li>
-          <li>
-            <Link href={`/projects/${projectNumber}`} className="hover:text-gray-700">Project {projectNumber}</Link>
-          </li>
-          <li>/</li>
-          <li className="text-gray-900 font-medium" aria-current="page">Jobs</li>
-        </ol>
-      </nav>
 
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Project {projectNumber} - Jobs</h1>
@@ -231,59 +185,109 @@ export default function ProjectJobsPage() {
         </Link>
       </div>
 
-      <form onSubmit={onSearch} className="mb-4 flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <label className="text-sm text-gray-600">Show</label>
-          <select
-            value={per}
-            onChange={(e) => onChangePer(Number(e.target.value))}
-            className="border rounded px-2 py-1"
-          >
-            <option value={10}>10</option>
-            <option value={25}>25</option>
-            <option value={50}>50</option>
-            <option value={100}>100</option>
-          </select>
-          <span className="text-sm text-gray-600">entries</span>
+      <form onSubmit={onSubmit} className="mb-3 space-y-3">
+        {/* First row: Entries per page */}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-600">Show</label>
+            <select
+              value={per}
+              onChange={(e) => changePerPage(Number(e.target.value))}
+              className="border rounded px-2 py-1 text-sm"
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+            <span className="text-sm text-gray-600">entries</span>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <input 
-            value={qLocal} 
-            onChange={(e) => setQLocal(e.target.value)} 
-            placeholder="Search dataset name..." 
-            className="border rounded px-3 py-2" 
-          />
-          <div className="text-xs text-gray-500">Search updates automatically</div>
+        {/* Second row: Filters */}
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-600">Status:</label>
+            <select
+              value={statusLocal}
+              onChange={(e) => setStatusLocal(e.target.value)}
+              className="border rounded px-2 py-1 text-sm min-w-32"
+            >
+              {statusOptions.map(option => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-600">User:</label>
+            <input 
+              value={userLocal} 
+              onChange={(e) => setUserLocal(e.target.value)} 
+              placeholder="Filter by user..." 
+              className="border rounded px-2 py-1 text-sm" 
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-600">From:</label>
+            <input 
+              type="date"
+              value={fromDateLocal} 
+              onChange={(e) => setFromDateLocal(e.target.value)} 
+              className="border rounded px-2 py-1 text-sm" 
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-600">To:</label>
+            <input 
+              type="date"
+              value={toDateLocal} 
+              onChange={(e) => setToDateLocal(e.target.value)} 
+              className="border rounded px-2 py-1 text-sm" 
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              clearFilters();
+              setUserLocal('');
+            }}
+            className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 border border-gray-300 rounded hover:bg-gray-200 transition-colors"
+          >
+            Clear Filters
+          </button>
         </div>
       </form>
 
       <div className="overflow-x-auto">
         <table className="min-w-full border border-gray-200 rounded-lg">
-          <thead className="bg-gray-50">
+          <thead style={{ backgroundColor: '#6CD3D1' }}>
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-r">
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-r">
                 Job ID
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-r">
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-r">
                 Status
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-r">
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-r">
                 User
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-r max-w-48">
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-r max-w-48">
                 Next Dataset
               </th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-r">
+              <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-r">
                 Script
               </th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-r">
+              <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-r">
                 Logs
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-r">
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-r">
                 Duration
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
                 Started
               </th>
             </tr>
@@ -291,16 +295,16 @@ export default function ProjectJobsPage() {
           <tbody className="bg-white divide-y divide-gray-200">
             {jobs.map((job) => (
               <tr key={job.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 text-sm font-medium text-gray-900 border-r">
+                <td className="px-3 py-1.5 text-sm font-medium text-gray-900 border-r">
                   {job.id}
                 </td>
-                <td className="px-4 py-3 text-sm border-r">
+                <td className="px-3 py-1.5 text-sm border-r">
                   <StatusBadge status={job.status} />
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-900 border-r">
+                <td className="px-3 py-1.5 text-sm text-gray-900 border-r">
                   {job.user}
                 </td>
-                <td className="px-4 py-3 text-sm border-r max-w-48">
+                <td className="px-3 py-1.5 text-sm border-r max-w-48">
                   {job.dataset ? (
                     <div className="max-w-full">
                       <Link 
@@ -321,7 +325,7 @@ export default function ProjectJobsPage() {
                     </div>
                   )}
                 </td>
-                <td className="px-4 py-3 text-sm border-r text-center">
+                <td className="px-3 py-1.5 text-sm border-r text-center">
                   <Link 
                     href={`/jobs/${job.id}/script`}
                     className="inline-flex items-center px-3 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-full hover:bg-blue-200"
@@ -329,7 +333,7 @@ export default function ProjectJobsPage() {
                     Show Script
                   </Link>
                 </td>
-                <td className="px-4 py-3 text-sm border-r text-center">
+                <td className="px-3 py-1.5 text-sm border-r text-center">
                   <Link 
                     href={`/jobs/${job.id}/logs`}
                     className="inline-flex items-center px-3 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded-full hover:bg-gray-200"
@@ -337,11 +341,11 @@ export default function ProjectJobsPage() {
                     Show Logs
                   </Link>
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-900 border-r">
-                  {formatDuration(job.time.start_time, job.time.end_time)}
+                <td className="px-3 py-1.5 text-sm text-gray-900 border-r">
+                  {job.time ? formatDuration(job.time.start_time, job.time.end_time) : '-'}
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-900">
-                  {formatDateTime(job.time.start_time)}
+                <td className="px-3 py-1.5 text-sm text-gray-900">
+                  {job.time ? formatDateTime(job.time.start_time) : formatDateTime(job.created_at)}
                 </td>
               </tr>
             ))}
@@ -356,21 +360,21 @@ export default function ProjectJobsPage() {
         </div>
       )}
 
-      <div className="mt-4 flex items-center justify-between gap-2">
+      <div className="mt-3 flex items-center justify-between gap-2">
         <div className="text-sm text-gray-600">Showing {startIndex} to {endIndex} of {total} entries</div>
         <div className="flex items-center gap-2">
           <button 
             disabled={page <= 1} 
             onClick={() => goToPage(page - 1)} 
-            className="px-3 py-1 border rounded disabled:opacity-50"
+            className="px-3 py-1 border rounded disabled:opacity-50 text-sm"
           >
             Prev
           </button>
-          <span>Page {page} / {totalPages}</span>
+          <span className="text-sm">Page {page} / {totalPages}</span>
           <button 
             disabled={page >= totalPages} 
             onClick={() => goToPage(page + 1)} 
-            className="px-3 py-1 border rounded disabled:opacity-50"
+            className="px-3 py-1 border rounded disabled:opacity-50 text-sm"
           >
             Next
           </button>

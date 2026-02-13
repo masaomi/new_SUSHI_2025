@@ -14,17 +14,43 @@ export default function DocsHomePage() {
             View Type Documentation →
           </a>
         </div>
-        
+
         <div className="border rounded-lg p-6 hover:shadow-md transition-shadow">
-          <h3 className="text-lg font-semibold mb-2">jsTree Integration</h3>
+          <h3 className="text-lg font-semibold mb-2">API System</h3>
           <p className="text-gray-600 mb-4">
-            Complete implementation guide for jsTree with Next.js, including SSR solutions and type definitions.
+            Documentation to all backend API calls
           </p>
-          <a 
-            href="/docs/jstree" 
+          <a
+            href="/docs/api"
             className="inline-flex items-center text-blue-600 hover:text-blue-800"
           >
-            View jsTree Documentation →
+            View API Documentation →
+          </a>
+        </div>
+
+        <div className="border rounded-lg p-6 hover:shadow-md transition-shadow">
+          <h3 className="text-lg font-semibold mb-2">Hooks</h3>
+          <p className="text-gray-600 mb-4">
+            Custom React hooks documentation covering data fetching, URL state, pagination, and form handling.
+          </p>
+          <a
+            href="/docs/hooks"
+            className="inline-flex items-center text-blue-600 hover:text-blue-800"
+          >
+            View Hooks Documentation →
+          </a>
+        </div>
+
+        <div className="border rounded-lg p-6 hover:shadow-md transition-shadow">
+          <h3 className="text-lg font-semibold mb-2">Testing</h3>
+          <p className="text-gray-600 mb-4">
+            Overview of API layer, hook layer, and integration testing approaches with practical examples and focus areas.
+          </p>
+          <a 
+            href="/docs/testing" 
+            className="inline-flex items-center text-blue-600 hover:text-blue-800"
+          >
+            View Testing Documentation 
           </a>
         </div>
 
@@ -37,7 +63,7 @@ export default function DocsHomePage() {
             href="/docs/loading-patterns" 
             className="inline-flex items-center text-blue-600 hover:text-blue-800"
           >
-            View Loading Patterns →
+            View Loading Patterns
           </a>
         </div>
 
@@ -81,15 +107,15 @@ export default function DocsHomePage() {
         </div>
 
         <div className="border rounded-lg p-6 hover:shadow-md transition-shadow">
-          <h3 className="text-lg font-semibold mb-2">Table Editing System</h3>
+          <h3 className="text-lg font-semibold mb-2">Hands On Table</h3>
           <p className="text-gray-600 mb-4">
-            Complete architecture guide for the editable table system used for sample data manipulation.
+            Hands on table documentation for sample editing.
           </p>
           <a 
-            href="/docs/table-editing" 
+            href="/docs/handsontable" 
             className="inline-flex items-center text-blue-600 hover:text-blue-800"
           >
-            View Table Editing Guide →
+            View Handsontable Documentation
           </a>
         </div>
 
@@ -107,41 +133,28 @@ export default function DocsHomePage() {
         </div>
 
         <div className="border rounded-lg p-6 hover:shadow-md transition-shadow">
-          <h3 className="text-lg font-semibold mb-2">Test Strategy</h3>
+          <h3 className="text-lg font-semibold mb-2">Multiple UI Triggers</h3>
           <p className="text-gray-600 mb-4">
-            Testing strategy and implementation plan covering unit tests, integration tests, best practices, and tooling setup.
+            Analysis of NextJS rendering cycles and React Query data fetching patterns that cause multiple component re-renders.
           </p>
           <a 
-            href="/docs/test-strategy" 
+            href="/docs/multiple-ui-triggers" 
             className="inline-flex items-center text-blue-600 hover:text-blue-800"
           >
-            View Test Strategy →
+            View UI Triggers Guide →
           </a>
         </div>
 
         <div className="border rounded-lg p-6 hover:shadow-md transition-shadow">
-          <h3 className="text-lg font-semibold mb-2">Test Layers</h3>
+          <h3 className="text-lg font-semibold mb-2">State Management</h3>
           <p className="text-gray-600 mb-4">
-            Overview of API layer, hook layer, and integration testing approaches with practical examples and focus areas.
+            Guide to state management and data persistence between pages using localStorage, React Context, and server-side sessions.
           </p>
           <a 
-            href="/docs/test-layers" 
+            href="/docs/state-management" 
             className="inline-flex items-center text-blue-600 hover:text-blue-800"
           >
-            View Test Layers →
-          </a>
-        </div>
-
-        <div className="border rounded-lg p-6 hover:shadow-md transition-shadow">
-          <h3 className="text-lg font-semibold mb-2">Backend API Endpoints</h3>
-          <p className="text-gray-600 mb-4">
-            Complete reference for all available REST API endpoints including authentication, projects, datasets, jobs, and configuration.
-          </p>
-          <a 
-            href="/docs/backend-api" 
-            className="inline-flex items-center text-blue-600 hover:text-blue-800"
-          >
-            View API Documentation →
+            View State Management →
           </a>
         </div>
 

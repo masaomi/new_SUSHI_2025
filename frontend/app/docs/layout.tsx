@@ -44,7 +44,7 @@ export default function DocsLayout({
         </div>
       </header>
 
-      <div className="container mx-auto px-6 py-8">
+      <div className="container px-6 py-8">
         <div className={`flex ${sidebarOpen ? 'gap-8' : 'gap-0'}`}>
           {/* Collapsible Sidebar Navigation */}
           {sidebarOpen && (
@@ -61,8 +61,24 @@ export default function DocsLayout({
                     </Link>
                   </li>
                   <li>
-                    <Link 
-                      href="/docs/types" 
+                    <Link
+                      href="/docs/api"
+                      className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+                    >
+                      API
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/docs/hooks"
+                      className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+                    >
+                      Hooks
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/docs/types"
                       className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
                     >
                       Type System
@@ -70,10 +86,10 @@ export default function DocsLayout({
                   </li>
                   <li>
                     <Link 
-                      href="/docs/jstree" 
+                      href="/docs/testing" 
                       className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
                     >
-                      jsTree Integration
+                      Testing
                     </Link>
                   </li>
                   <li>
@@ -81,7 +97,7 @@ export default function DocsLayout({
                       href="/docs/loading-patterns" 
                       className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
                     >
-                      Loading Patterns
+                      Loading Patterns (Outdated)
                     </Link>
                   </li>
                   <li>
@@ -110,42 +126,26 @@ export default function DocsLayout({
                   </li>
                   <li>
                     <Link 
-                      href="/docs/table-editing" 
+                      href="/docs/handsontable" 
                       className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
                     >
-                      Table Editing System
+                      Hands on Table Integration
                     </Link>
                   </li>
                   <li>
                     <Link 
-                      href="/docs/linting" 
+                      href="/docs/multiple-ui-triggers" 
                       className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
                     >
-                      Linting System
+                      Multiple UI Triggers
                     </Link>
                   </li>
                   <li>
                     <Link 
-                      href="/docs/test-strategy" 
+                      href="/docs/state-management" 
                       className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
                     >
-                      Test Strategy
-                    </Link>
-                  </li>
-                  <li>
-                    <Link 
-                      href="/docs/test-layers" 
-                      className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
-                    >
-                      Test Layers
-                    </Link>
-                  </li>
-                  <li>
-                    <Link 
-                      href="/docs/backend-api" 
-                      className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
-                    >
-                      Backend API Endpoints
+                      State Management
                     </Link>
                   </li>
                 </ul>

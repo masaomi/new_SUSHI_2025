@@ -1,9 +1,7 @@
-import { projectApi } from './projects';
-import { server } from '../../mocks/server';
-import { http, HttpResponse } from 'msw';
-
-// Base URL for test overrides - must match jest.polyfills.js
-const API_BASE = 'http://localhost:4000';
+import { describe, it, expect } from 'vitest'
+import { projectApi } from './projects'
+import { server } from '../../mocks/server'
+import { http, HttpResponse } from 'msw'
 
 describe('projectApi', () => {
   describe('getUserProjects', () => {
@@ -19,7 +17,7 @@ describe('projectApi', () => {
     it('handles API errors correctly', async () => {
       // Override MSW handler to return error
       server.use(
-        http.get(`${API_BASE}/api/v1/projects`, () => {
+        http.get('*/api/v1/projects', () => {
           return new HttpResponse(null, { status: 500, statusText: 'Internal Server Error' });
         })
       );
@@ -47,7 +45,7 @@ describe('projectApi', () => {
       let interceptedUrl: string = '';
       
       server.use(
-        http.get(`${API_BASE}/api/v1/projects/:projectId/datasets`, ({ request }) => {
+        http.get('*/api/v1/projects/:projectId/datasets', ({ request }) => {
           interceptedUrl = request.url;
           return HttpResponse.json({
             datasets: [],
@@ -68,7 +66,7 @@ describe('projectApi', () => {
       let interceptedUrl: string = '';
       
       server.use(
-        http.get(`${API_BASE}/api/v1/projects/:projectId/datasets`, ({ request }) => {
+        http.get('*/api/v1/projects/:projectId/datasets', ({ request }) => {
           interceptedUrl = request.url;
           return HttpResponse.json({
             datasets: [],
@@ -89,7 +87,7 @@ describe('projectApi', () => {
       let interceptedUrl: string = '';
       
       server.use(
-        http.get(`${API_BASE}/api/v1/projects/:projectId/datasets`, ({ request }) => {
+        http.get('*/api/v1/projects/:projectId/datasets', ({ request }) => {
           interceptedUrl = request.url;
           return HttpResponse.json({
             datasets: [],
@@ -118,7 +116,7 @@ describe('projectApi', () => {
       let interceptedUrl: string = '';
       
       server.use(
-        http.get(`${API_BASE}/api/v1/projects/:projectId/datasets`, ({ request }) => {
+        http.get('*/api/v1/projects/:projectId/datasets', ({ request }) => {
           interceptedUrl = request.url;
           return HttpResponse.json({
             datasets: [],
@@ -144,7 +142,7 @@ describe('projectApi', () => {
 
     it('handles 404 errors', async () => {
       server.use(
-        http.get(`${API_BASE}/api/v1/projects/:projectId/datasets`, () => {
+        http.get('*/api/v1/projects/:projectId/datasets', () => {
           return new HttpResponse(null, { status: 404, statusText: 'Not Found' });
         })
       );
@@ -158,7 +156,7 @@ describe('projectApi', () => {
       let interceptedUrl: string = '';
       
       server.use(
-        http.get(`${API_BASE}/api/v1/projects/:projectId/datasets`, ({ request, params }) => {
+        http.get('*/api/v1/projects/:projectId/datasets', ({ request, params }) => {
           interceptedUrl = request.url;
           expect(params.projectId).toBe('1001');
           return HttpResponse.json({

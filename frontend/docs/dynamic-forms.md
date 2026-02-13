@@ -2,7 +2,7 @@
 
 ## Overview
 
-The dynamic form system generates forms dynamically based on SUSHI Application Ruby files parsed by the backend. This allows different applications (cellRanger, Seurat, scanpy, etc.) to define their own input parameters in their Ruby app definitions without requiring frontend code changes.
+The point is to generate forms dynamically based on a JSON file. This JSON file is to be created and maintained on the EzRun side. 
 
 ### Field Types Supported
 
@@ -18,7 +18,6 @@ The dynamic form system generates forms dynamically based on SUSHI Application R
 ### Core Components
 
 1. **Type Definitions** (`lib/types/app-form.ts`)
-2. **Backend Parser** (`backend/app/services/application_config_parser.rb`)
 3. **API Layer** (`lib/api/applications.ts`) - calls `/api/v1/application-configs/:app_name`
 4. **Form Renderer** (`lib/utils/form-renderer.tsx`)
 5. **Dynamic Page** (`app/projects/[projectNumber]/datasets/[datasetId]/run-application/[appName]/page.tsx`)
@@ -73,34 +72,6 @@ export interface DynamicFormData {
 }
 ```
 
-## Backend Integration
-
-### SUSHI Application Ruby Files
-
-The backend parses SUSHI Application Ruby files (e.g., `FastqcApp.rb`) to extract configuration:
-
-```ruby
-class FastqcApp < SushiApplication
-  def initialize
-    @name = 'Fastqc'
-    @analysis_category = 'Quality Control'
-    @description = 'A quality control tool for high throughput sequence data'
-    @required_columns = %w[Name Read1]
-    @required_params = %w[cores]
-    @modules = %w[QC]
-    @inherit_tags = false
-    @inherit_columns = %w[Order]
-  end
-
-  def params
-    {
-      'cores' => ['1', '2', '4', '8'],
-      'partition' => ['normal', 'long']
-    }
-  end
-end
-```
-
 ### API Response Example
 
 ```json
@@ -129,41 +100,6 @@ end
     ],
     "modules": ["QC"]
   }
-}
-```
-
-## Form Renderer Implementation
-
-The form renderer handles all supported field types with proper React components:
-
-### Field Rendering Logic
-
-- **`renderFormField(field, value, onChange)`**: Returns field-specific JSX
-  - **text**: `<input type="text">`
-  - **integer**: `<input type="number" step="1">` with parseInt() 
-  - **float/number**: `<input type="number" step="any">` with parseFloat()
-  - **select**: `<select>` with single selection
-  - **multi_select**: `<select multiple>` with array values
-  - **boolean**: `<input type="checkbox">` 
-  - **section**: `<h4>` headers and `<hr>` dividers
-
-- **`FormFieldComponent(field, value, onChange)`**: Wraps fields with labels and descriptions
-  - Uses `field.name` as label text
-  - Shows `field.description` as help text
-  - Handles section headers without labels
-  - Inline labels for boolean fields
-
-### Default Value Initialization
-
-The `initializeFormData()` function handles type-specific defaults:
-
-```typescript
-switch (field.type) {
-  case 'multi_select': defaultValue = field.selected || []; break;
-  case 'boolean': defaultValue = Boolean(field.default_value); break;
-  case 'integer': defaultValue = parseInt(field.default_value) || 0; break;
-  case 'float': defaultValue = parseFloat(field.default_value) || 0; break;
-  default: defaultValue = field.default_value || '';
 }
 ```
 
@@ -209,25 +145,3 @@ useEffect(() => {
   />
 ))}
 ```
-
-
-## Testing Strategy
-
-### Unit Tests
-- Field renderer for each input type
-- Form initialization with default values
-- State management for field changes
-- Validation logic for required fields
-
-### Integration Tests
-
-- API response handling
-- Form submission flow
-- Error state management
-- Loading state behavior
-
-### E2E Tests
-
-- Complete form filling workflow
-- Navigation between different apps
-- Job submission success/failure scenarios

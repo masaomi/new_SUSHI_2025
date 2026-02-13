@@ -1,6 +1,8 @@
 # Pagination and Search Architecture
+**Last Updated:** 2026-01-29     
 
-This document explains how our pagination and search system works, focusing on the separation of concerns between URL state management and data fetching.
+This document explains how our pagination and search system works, focusing on the separation of concerns between URL state management and data fetching.   
+The key insight is that **URL state management and data fetching are separate concerns** that work together through reactive programming principles.
 
 ## Architecture Overview
 
@@ -16,19 +18,21 @@ The `useSearch` and `usePagination` hooks have a **single responsibility**: sync
 ### useSearch Hook
 
 ```tsx
-const { searchQuery, localQuery, setLocalQuery, onSubmit } = useSearch();
+const { searchQuery, localQuery, setLocalQuery, onSubmit } = useSearch(paramName, debounceMs);
+// Example: useSearch('q', 300) - uses ?q= parameter with 300ms debounce
 ```
 
 **What it does:**
-- Reads `q` parameter from URL → `searchQuery`
+- Reads the specified URL parameter → `searchQuery`
 - Maintains local input state → `localQuery` (for immediate UI feedback)
-- Debounces input changes (300ms) before updating URL
+- Debounces input changes before updating URL
 - Synchronizes browser navigation (back/forward buttons)
+- Resets page to 1 when search changes
 
 **What it does NOT do:**
 - Does not fetch data
 - Does not know about datasets, jobs, or any business logic
-- Only manages the `q` URL parameter
+- Only manages the specified URL parameter
 
 ### usePagination Hook
 
@@ -49,32 +53,42 @@ const { page, per, goToPage, changePerPage } = usePagination(defaultPerPage);
 ### Key Point: Pure URL Management
 
 ```tsx
-// These hooks only produce 3 values from URL:
-const searchQuery = searchParams.get('q') || '';           // From useSearch
-const page = Number(searchParams.get('page') || 1);        // From usePagination  
-const per = Number(searchParams.get('per') || 50);         // From usePagination
+// These hooks only produce values from URL:
+const { searchQuery } = useSearch('q');                    // From useSearch
+const { page, per } = usePagination(10);                   // From usePagination
 
 // They don't know what data will be fetched with these parameters
 ```
 
 ## Point 2: Automatic Data Refetching
 
-The `useProjectDatasets` hook automatically refetches data when the 3 URL-derived values change.
+Data fetching hooks (or direct `useQuery`) automatically refetch when URL-derived values change.
 
-### useProjectDatasets Hook
+### Option A: Direct useQuery (more flexible)
 
 ```tsx
-const { datasets, total, isLoading } = useProjectDatasets({
+const { data, isLoading, error } = useQuery({
+  queryKey: ['datasets', projectNumber, { q: searchQuery, page, per }],
+  queryFn: () => projectApi.getProjectDatasets(projectNumber, { q: searchQuery, page, per }),
+  placeholderData: keepPreviousData,
+  staleTime: 60_000,
+});
+```
+
+### Option B: useProjectDatasets Hook (more convenient)
+
+```tsx
+const { datasets, total, totalPages, isLoading } = useProjectDatasets({
   projectNumber,
-  q: searchQuery,    // ← From useSearch hook
-  page,              // ← From usePagination hook  
-  per                // ← From usePagination hook
+  datasetName: searchQuery,  // ← From useSearch hook
+  page,                      // ← From usePagination hook
+  per                        // ← From usePagination hook
 });
 ```
 
 **How it works:**
-- Uses TanStack Query with a cache key: `['datasets', projectNumber, { q, page, per }]`
-- When any of `q`, `page`, or `per` change, the cache key changes
+- Uses TanStack Query with a cache key that includes all parameters
+- When any parameter changes, the cache key changes
 - TanStack Query automatically triggers a new API call for the new cache key
 - Previous data is shown while loading (via `placeholderData: keepPreviousData`)
 
@@ -103,15 +117,15 @@ Component: re-renders with filtered datasets
 ```tsx
 function ProjectDatasetsPage() {
   // Step 1: Get URL-derived values
-  const { searchQuery, localQuery, setLocalQuery, onSubmit } = useSearch();
-  const { page, per, goToPage, changePerPage } = usePagination();
-  
+  const { searchQuery, localQuery, setLocalQuery, onSubmit } = useSearch('q');
+  const { page, per, goToPage, changePerPage } = usePagination(10);
+
   // Step 2: Pass values to data fetching hook
   const { datasets, total, totalPages, isLoading } = useProjectDatasets({
     projectNumber,
-    q: searchQuery,    // ← URL-derived
-    page,              // ← URL-derived  
-    per                // ← URL-derived
+    datasetName: searchQuery,  // ← URL-derived
+    page,                      // ← URL-derived
+    per                        // ← URL-derived
   });
   
   // Step 3: Render UI
@@ -136,33 +150,3 @@ function ProjectDatasetsPage() {
   );
 }
 ```
-
-## Why This Architecture?
-
-### ✅ Benefits
-
-1. **Single Source of Truth**: URL contains all pagination/search state
-2. **Browser Integration**: Back/forward buttons work correctly
-3. **Bookmarkable**: URLs like `/datasets?q=test&page=2` work when shared
-4. **Separation of Concerns**: URL management ≠ Data fetching
-5. **Reusability**: Same hooks work for datasets, jobs, users, etc.
-6. **Automatic Caching**: TanStack Query handles caching and deduplication
-7. **Performance**: Debouncing prevents excessive API calls
-
-### ⚠️ Potential Issues
-
-1. **URL Pollution**: Many parameters can make URLs long
-2. **Double Rendering**: Component renders twice (local state + URL update)
-3. **Complexity**: New developers need to understand the flow
-4. **Debounce Delay**: 300ms delay might feel slow for some users
-
-### Possible Improvements
-
-1. **Reduce Debounce Delay**: 150ms instead of 300ms
-2. **Add URL Validation**: Ensure page/per are valid numbers
-3. **Custom URL Structure**: Use `/datasets/search/test/page/2` instead of query params
-4. **Virtualization**: For large lists, implement virtual scrolling
-5. **Server Components**: Move to Next.js server components for better SEO
-6. **State Libraries**: Consider Zustand/Jotai for complex shared state
-
-The key insight is that **URL state management and data fetching are separate concerns** that work together through reactive programming principles.

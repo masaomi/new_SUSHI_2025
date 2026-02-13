@@ -1,9 +1,10 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+
 // New landing page component that redirects
 export default function Home() {
-  const { useRouter } = require("next/navigation");
-  const { useEffect } = require("react");
   const router = useRouter();
 
   useEffect(() => {
