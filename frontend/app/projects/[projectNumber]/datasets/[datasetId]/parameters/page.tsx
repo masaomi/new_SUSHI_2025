@@ -42,7 +42,7 @@ export default function DatasetParametersPage() {
         <div className="text-center py-12">
           <div className="text-red-600 text-lg font-medium mb-2">Failed to load parameters</div>
           <p className="text-gray-500 mb-4">There was an error loading the dataset parameters.</p>
-          <Link href={`/projects/${projectNumber}/datasets/${datasetId}`} className="text-blue-600 hover:underline">
+          <Link href={`/projects/${projectNumber}/datasets/${datasetId}`} className="text-brand-600 hover:underline">
             Back to Dataset
           </Link>
         </div>
@@ -83,7 +83,7 @@ export default function DatasetParametersPage() {
       <div className="mt-4">
         <Link
           href={`/projects/${projectNumber}/datasets/${datasetId}`}
-          className="text-blue-600 hover:underline text-sm"
+          className="text-brand-600 hover:underline text-sm"
         >
           Back to Dataset
         </Link>

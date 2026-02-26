@@ -86,7 +86,7 @@ export default function DatasetDetailPage() {
       <div className="text-center py-12">
         <div className="text-red-600 text-lg font-medium mb-2">Failed to load dataset</div>
         <p className="text-gray-500 mb-4">There was an error loading the dataset information.</p>
-        <Link href={`/projects/${projectNumber}/datasets`} className="text-blue-600 hover:underline">
+        <Link href={`/projects/${projectNumber}/datasets`} className="text-brand-600 hover:underline">
           ← Back to Datasets
         </Link>
       </div>
@@ -98,7 +98,7 @@ export default function DatasetDetailPage() {
       <div className="container mx-auto px-6 py-8">
         <h1 className="text-2xl font-bold mb-4 text-red-600">Dataset Not Found</h1>
         <p className="text-gray-700 mb-6">Dataset {datasetId} was not found in project {projectNumber}.</p>
-        <Link href={`/projects/${projectNumber}/datasets`} className="text-blue-600 hover:underline">← Back to Datasets</Link>
+        <Link href={`/projects/${projectNumber}/datasets`} className="text-brand-600 hover:underline">← Back to Datasets</Link>
       </div>
     );
   }
@@ -114,30 +114,30 @@ export default function DatasetDetailPage() {
         ]} />
 
         {/* Quick Actions - top right */}
-        <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+        <div className="flex items-center gap-1">
           <button
             onClick={async () => {
               const { path } = await datasetApi.getDatasetDataFolder(datasetId);
               router.push(`/files/${path}`);
             }}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-700 bg-white rounded-md shadow-sm hover:bg-blue-50 hover:text-blue-700 transition-colors"
+            className="px-2.5 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
             title="Data Folder"
           >
-            <span>Data Folder</span>
+            Data Folder
           </button>
           <button
             onClick={() => router.push(`/projects/${projectNumber}/datasets/${datasetId}/samples/edit`)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-700 bg-white rounded-md shadow-sm hover:bg-blue-50 hover:text-blue-700 transition-colors"
+            className="px-2.5 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
             title="Edit Samples"
           >
-            <span>Edit Samples</span>
+            Edit Samples
           </button>
           <button
             onClick={() => router.push(`/projects/${projectNumber}/datasets/${datasetId}/jobs`)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-700 bg-white rounded-md shadow-sm hover:bg-blue-50 hover:text-blue-700 transition-colors"
+            className="px-2.5 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
             title="Job Scripts"
           >
-            <span>Jobs</span>
+            Jobs
           </button>
         </div>
       </div>
@@ -145,13 +145,13 @@ export default function DatasetDetailPage() {
       {/* Dataset Actions */}
       <div className="flex flex-wrap gap-1 mb-3">
         <button
-          className={`px-2 py-1 text-xs font-medium rounded ${activeAction === 'comment' ? 'bg-blue-600 text-white border border-blue-600' : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'}`}
+          className={`px-2 py-1 text-xs font-medium rounded ${activeAction === 'comment' ? 'bg-brand-600 text-white border border-brand-600' : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'}`}
           onClick={() => { setActiveAction(activeAction === 'comment' ? null : 'comment'); setInputValue(''); }}
         >
           Comment
         </button>
         <button
-          className={`px-2 py-1 text-xs font-medium rounded ${activeAction === 'rename' ? 'bg-blue-600 text-white border border-blue-600' : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'}`}
+          className={`px-2 py-1 text-xs font-medium rounded ${activeAction === 'rename' ? 'bg-brand-600 text-white border border-brand-600' : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'}`}
           onClick={() => { setActiveAction(activeAction === 'rename' ? null : 'rename'); setInputValue(activeAction === 'rename' ? '' : dataset.name); }}
         >
           Rename
@@ -190,7 +190,7 @@ export default function DatasetDetailPage() {
           Run Again
         </button>
         <button
-          className={`px-2 py-1 text-xs font-medium rounded ${activeAction === 'bfabricId' ? 'bg-blue-600 text-white border border-blue-600' : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'}`}
+          className={`px-2 py-1 text-xs font-medium rounded ${activeAction === 'bfabricId' ? 'bg-brand-600 text-white border border-brand-600' : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'}`}
           onClick={() => { setActiveAction(activeAction === 'bfabricId' ? null : 'bfabricId'); setInputValue(''); }}
         >
           B-Fabric ID
@@ -211,7 +211,7 @@ export default function DatasetDetailPage() {
 
       {/* Expandable input field for Comment/Rename/B-Fabric ID */}
       {activeAction && (
-        <div className="mb-3 p-3 bg-gray-50 border border-gray-200 rounded">
+        <div className="mb-3">
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-gray-700 min-w-24">
               {activeAction === 'comment' ? 'Comment:' : activeAction === 'rename' ? 'New name:' : 'B-Fabric ID:'}
@@ -221,7 +221,7 @@ export default function DatasetDetailPage() {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               placeholder={activeAction === 'comment' ? 'Enter comment...' : activeAction === 'rename' ? 'Enter new name...' : 'Enter B-Fabric ID...'}
-              className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleActionSubmit();
@@ -231,7 +231,7 @@ export default function DatasetDetailPage() {
             <button
               onClick={handleActionSubmit}
               disabled={!inputValue.trim()}
-              className="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 py-1.5 text-xs font-medium text-white bg-brand-600 rounded hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Submit
             </button>

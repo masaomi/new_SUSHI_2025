@@ -24,8 +24,14 @@ export interface JobMinimal {
   id: number;
   status: string;
   user: string;
-  input_dataset_id: number;
-  next_dataset_id: number;
+  dataset: {
+    id: number;
+    name: string;
+  } | null;
+  time: {
+    start_time: string;
+    end_time?: string;
+  };
   created_at: string;
 }
 

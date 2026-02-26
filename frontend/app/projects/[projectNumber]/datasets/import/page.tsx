@@ -65,7 +65,7 @@ export default function ImportDatasetPage() {
                   file
                     ? 'border-green-300 bg-green-50'
                     : isDragOver
-                      ? 'border-blue-400 bg-blue-50'
+                      ? 'border-brand-400 bg-brand-50'
                       : 'border-gray-300 hover:border-gray-400'
                 }`}
                 onDragOver={handleDragOver}
@@ -114,7 +114,7 @@ export default function ImportDatasetPage() {
                   value={datasetName}
                   onChange={(e) => setDatasetName(e.target.value)}
                   placeholder="Enter dataset name"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-shadow"
                 />
               </div>
 
@@ -136,7 +136,7 @@ export default function ImportDatasetPage() {
                           ? 'border-gray-200 bg-gray-50 text-gray-400'
                           : parentIdError
                             ? 'border-red-300 focus:ring-red-500 focus:ring-2 focus:outline-none'
-                            : 'border-gray-300 focus:ring-blue-500 focus:ring-2 focus:outline-none'
+                            : 'border-gray-300 focus:ring-brand-500 focus:ring-2 focus:outline-none'
                       }`}
                     />
                     {parentIdError && !noParent && (
@@ -148,7 +148,7 @@ export default function ImportDatasetPage() {
                       type="checkbox"
                       checked={noParent}
                       onChange={(e) => handleNoParentChange(e.target.checked)}
-                      className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      className="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
                     />
                     <span className="text-sm text-gray-600 whitespace-nowrap">No parent</span>
                   </label>
@@ -171,13 +171,13 @@ export default function ImportDatasetPage() {
                     value={treeSearch}
                     onChange={(e) => setTreeSearch(e.target.value)}
                     placeholder="Search datasets..."
-                    className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
                   />
                 </div>
 
                 {isTreeLoading ? (
                   <div className="border border-gray-200 rounded-lg p-6 text-center">
-                    <div className="animate-spin w-5 h-5 border-2 border-gray-300 border-t-blue-600 rounded-full mx-auto"></div>
+                    <div className="animate-spin w-5 h-5 border-2 border-gray-300 border-t-brand-600 rounded-full mx-auto"></div>
                     <p className="text-sm text-gray-500 mt-2">Loading datasets...</p>
                   </div>
                 ) : treeData?.tree ? (
@@ -210,7 +210,7 @@ export default function ImportDatasetPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="flex-1 px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="flex-1 px-4 py-2.5 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {isSubmitting ? (
                   <span className="flex items-center justify-center gap-2">

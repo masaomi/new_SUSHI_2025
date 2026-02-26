@@ -25,7 +25,7 @@ export default function SamplesEditPage() {
       <div className="text-center py-12">
         <div className="text-red-600 text-lg font-medium mb-2">Failed to load dataset</div>
         <p className="text-gray-500 mb-4">There was an error loading the dataset information.</p>
-        <Link href={`/projects/${projectNumber}/datasets/${datasetId}`} className="text-blue-600 hover:underline">
+        <Link href={`/projects/${projectNumber}/datasets/${datasetId}`} className="text-brand-600 hover:underline">
           ← Back to Dataset
         </Link>
       </div>
@@ -38,7 +38,7 @@ export default function SamplesEditPage() {
       <div className="container mx-auto px-6 py-8">
         <h1 className="text-2xl font-bold mb-4 text-red-600">Dataset Not Found</h1>
         <p className="text-gray-700 mb-6">Dataset {datasetId} was not found in project {projectNumber}.</p>
-        <Link href={`/projects/${projectNumber}/datasets`} className="text-blue-600 hover:underline">← Back to Datasets</Link>
+        <Link href={`/projects/${projectNumber}/datasets`} className="text-brand-600 hover:underline">← Back to Datasets</Link>
       </div>
     );
   }

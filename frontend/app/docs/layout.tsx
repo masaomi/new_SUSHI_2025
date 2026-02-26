@@ -17,7 +17,7 @@ export default function DocsLayout({
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <Link href="/" className="text-blue-600 hover:text-blue-800">
+              <Link href="/" className="text-brand-600 hover:text-brand-800">
                 ← Back to App
               </Link>
               <button

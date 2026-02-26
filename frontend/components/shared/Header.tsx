@@ -13,10 +13,10 @@ const AuthStatus = () => {
 
   if (loading) {
     return (
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 mb-4">
+      <div className="bg-brand-50 border border-brand-200 rounded-lg p-2 mb-4">
         <div className="flex items-center">
-          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-2"></div>
-          <span className="text-blue-800 text-xs">Loading auth...</span>
+          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-brand-600 mr-2"></div>
+          <span className="text-brand-800 text-xs">Loading auth...</span>
         </div>
       </div>
     );
@@ -88,13 +88,13 @@ export default function Header() {
   // Show loading screen while checking authentication
   if (loading) {
     return (
-      <header className="bg-white shadow-sm border-b-2 border-gray-200">
+      <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
         <div className="container mx-auto px-6 py-3 flex justify-between items-center">
           <div className="text-3xl font-bold" style={{fontFamily: "Comic Sans MS, cursive, sans-serif"}}>
             <h1>Sushi</h1>
           </div>
           <div className="flex items-center">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-brand-600 mr-2"></div>
             <span className="text-gray-600 text-sm">Loading...</span>
           </div>
         </div>
@@ -143,11 +143,11 @@ export default function Header() {
   };
 
   return (
-    <div>
-      <header className="bg-white shadow-sm border-b-2 border-gray-200">
+    <div className="sticky top-0 z-50">
+      <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="container mx-auto px-6 py-3 flex justify-between items-center">
           <div className="flex items-center">
-            <Link href="/" className="text-3xl font-bold hover:text-blue-600 transition-colors mr-4" style={{fontFamily: "Comic Sans MS, cursive, sans-serif"}}>
+            <Link href="/" className="text-3xl font-bold hover:text-brand-600 transition-colors mr-4" style={{fontFamily: "Comic Sans MS, cursive, sans-serif"}}>
               <h1>Sushi</h1>
             </Link>
             
@@ -155,7 +155,7 @@ export default function Header() {
             <div className="relative">
               <button 
                 onClick={toggleProjectsDropdown}
-                className="text-gray-600 hover:text-blue-600 flex items-center space-x-1 px-2 py-1"
+                className="text-gray-600 hover:text-brand-600 flex items-center space-x-1 px-2 py-1"
               >
                 <span>Projects</span>
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -194,7 +194,7 @@ export default function Header() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Project #..."
-                className="px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm w-24"
+                className="px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent text-sm w-24"
               />
             </form>
 
@@ -205,20 +205,20 @@ export default function Header() {
                 value={datasetSearchQuery}
                 onChange={(e) => setDatasetSearchQuery(e.target.value)}
                 placeholder="Dataset ID"
-                className="px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm w-24"
+                className="px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent text-sm w-24"
               />
             </form>
           </div>
           
           <nav className="flex items-center space-x-4">
             {projectNumber && (
-              <Link href={`/projects/${projectNumber}/datasets`} className="text-gray-600 hover:text-blue-600">DataSets</Link>
+              <Link href={`/projects/${projectNumber}/datasets`} className="text-gray-600 hover:text-brand-600">DataSets</Link>
             )}
-            <Link href={`/projects/${projectNumber}/datasets/import`} className="text-gray-600 hover:text-blue-600">Import</Link>
-            <Link href={`/projects/${projectNumber}/jobs`} className="text-gray-600 hover:text-blue-600">Jobs</Link>
-            <Link href={`/files/p${projectNumber}`} className="text-gray-600 hover:text-blue-600">gStore</Link>
-            <Link href="/docs" className="text-gray-600 hover:text-blue-600">Docs</Link>
-            <Link href="/help" className="text-gray-600 hover:text-blue-600">Help</Link>
+            <Link href={`/projects/${projectNumber}/datasets/import`} className="text-gray-600 hover:text-brand-600">Import</Link>
+            <Link href={`/projects/${projectNumber}/jobs`} className="text-gray-600 hover:text-brand-600">Jobs</Link>
+            <Link href={`/files/p${projectNumber}`} className="text-gray-600 hover:text-brand-600">gStore</Link>
+            <Link href="/docs" className="text-gray-600 hover:text-brand-600">Docs</Link>
+            <Link href="/help" className="text-gray-600 hover:text-brand-600">Help</Link>
             <div className="border-l border-gray-300 h-6"></div>
             {projectNumber && (
               <span className="font-semibold">Project {projectNumber}</span>
@@ -231,7 +231,7 @@ export default function Header() {
             ) : (
               <button
                 onClick={handleLogout}
-                className="text-blue-600 hover:underline ml-1 bg-transparent border-none cursor-pointer"
+                className="text-brand-600 hover:underline ml-1 bg-transparent border-none cursor-pointer"
               >
                 | Sign out
               </button>

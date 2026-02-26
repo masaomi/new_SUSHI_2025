@@ -46,7 +46,7 @@ export default function DatasetInfoCard({ dataset }: DatasetInfoCardProps) {
                   href={`https://fgcz-bfabric.uzh.ch/bfabric/dataset/show.html?id=${dataset.bfabric_id}&tab=details`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline"
+                  className="text-brand-600 hover:underline"
                 >
                   {dataset.bfabric_id}
                 </a>
@@ -61,7 +61,7 @@ export default function DatasetInfoCard({ dataset }: DatasetInfoCardProps) {
                   href={`https://fgcz-bfabric.uzh.ch/bfabric/dataset/show.html?id=${dataset.bfabric_id}&tab=details`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline"
+                  className="text-brand-600 hover:underline"
                 >
                   {dataset.order_id}
                 </a>

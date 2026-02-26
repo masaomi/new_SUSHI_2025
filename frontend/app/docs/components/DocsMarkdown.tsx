@@ -86,7 +86,7 @@ export default function DocsMarkdown({ content, className = "prose prose-lg max-
           },
           // Custom styling for blockquotes
           blockquote: ({ children }) => (
-            <blockquote className="border-l-4 border-blue-500 pl-4 italic text-gray-700 bg-blue-50 p-4 rounded-r-lg">
+            <blockquote className="border-l-4 border-brand-500 pl-4 italic text-gray-700 bg-brand-50 p-4 rounded-r-lg">
               {children}
             </blockquote>
           ),

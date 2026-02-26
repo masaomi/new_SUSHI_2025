@@ -64,7 +64,7 @@ export default function JobScriptPage() {
         <div className="p-0">
           {loading ? (
             <div className="flex items-center justify-center p-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500"></div>
               <span className="ml-3 text-gray-600">Loading script...</span>
             </div>
           ) : error ? (

@@ -27,9 +27,9 @@ export default function Breadcrumbs({ items }: BreadcrumbsProps) {
     elements.push(
       <li key={`item-${index}`}>
         {item.href && !item.active ? (
-          <Link 
-            href={item.href} 
-            className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2 py-1 rounded transition-colors font-medium"
+          <Link
+            href={item.href}
+            className="text-brand-600 hover:text-brand-800 hover:bg-brand-50 px-2 py-1 rounded transition-colors font-medium"
           >
             {item.label}
           </Link>

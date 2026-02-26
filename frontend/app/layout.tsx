@@ -30,8 +30,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${inter.variable} ${robotoMono.variable} antialiased`}
-        style={{ backgroundColor: '#e0e5e9' }}
+        className={`${inter.variable} ${robotoMono.variable} antialiased bg-surface`}
       >
         <QueryProvider>
           <AuthProvider>
@@ -40,12 +39,12 @@ export default function RootLayout({
               <main className="flex-grow">
                 {children}
               </main>
-              <footer className="py-4 mt-auto" style={{ backgroundColor: '#2c3e50', color: 'white' }}>
+              <footer className="py-4 mt-auto bg-slate-850 text-white">
                 <div className="container mx-auto px-6 relative text-sm">
                   <div className="text-center text-gray-400">
                     SUSHI - produced by Functional Genomics Center Zurich and SIB
                   </div>
-                  <a href="/ranking" className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors flex items-center gap-1">
+                  <a href="/ranking" className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-850 hover:text-white transition-colors flex items-center gap-1">
                     <span>Rankings</span>
                   </a>
                 </div>

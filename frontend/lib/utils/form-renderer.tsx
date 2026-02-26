@@ -10,7 +10,7 @@ interface FieldRendererProps {
 }
 
 export const renderFormField = ({ field, value, onChange, onBlur, onKeyDown }: FieldRendererProps): JSX.Element => {
-  const baseClasses = "px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500";
+  const baseClasses = "px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500";
   const disabledClasses = field.disabled ? "bg-gray-100 text-gray-500 cursor-not-allowed" : "";
   
   // Handle section headers
@@ -85,7 +85,7 @@ export const renderFormField = ({ field, value, onChange, onBlur, onKeyDown }: F
             onBlur={() => onBlur?.(field.name)}
             onKeyDown={(e) => onKeyDown?.(e, field.name)}
             disabled={field.disabled}
-            className={`w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 ${field.disabled ? 'cursor-not-allowed opacity-50' : ''}`}
+            className={`w-4 h-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500 ${field.disabled ? 'cursor-not-allowed opacity-50' : ''}`}
           />
           <label htmlFor={field.name} className={`ml-2 text-sm ${field.disabled ? 'text-gray-400' : 'text-gray-700'}`}>
             {field.description || 'Enable option'}

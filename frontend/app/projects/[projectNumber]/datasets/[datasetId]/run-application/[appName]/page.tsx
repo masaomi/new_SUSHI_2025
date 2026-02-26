@@ -122,7 +122,7 @@ export default function RunApplicationPage() {
           </p>
           <Link
             href={`/projects/${projectNumber}/datasets`}
-            className="text-blue-600 hover:underline"
+            className="text-brand-600 hover:underline"
           >
             ← Back to Datasets
           </Link>
@@ -140,7 +140,7 @@ export default function RunApplicationPage() {
         </p>
         <Link
           href={`/projects/${projectNumber}/datasets`}
-          className="text-blue-600 hover:underline"
+          className="text-brand-600 hover:underline"
         >
           ← Back to Datasets
         </Link>
@@ -189,13 +189,13 @@ export default function RunApplicationPage() {
       <div className="space-y-6">
         {/* NextDataset Section */}
         <div className="bg-white border rounded-lg overflow-hidden">
-          <div className="p-6">
-            <h3 className="text-lg font-semibold mb-6">NextDataset</h3>
-            <div className="space-y-4">
+          <div className="px-6 py-4">
+            <h3 className="text-lg font-semibold mb-4">NextDataset</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label
                   htmlFor="datasetName"
-                  className="block text-sm font-medium text-gray-700 mb-2"
+                  className="block text-sm font-medium text-gray-700 mb-1"
                 >
                   Name
                 </label>
@@ -205,14 +205,14 @@ export default function RunApplicationPage() {
                   name="datasetName"
                   value={nextDatasetData.datasetName}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
                   placeholder={`${appName}_${dataset.name}_${new Date().toISOString().slice(0, 10)}`}
                 />
               </div>
               <div>
                 <label
                   htmlFor="datasetComment"
-                  className="block text-sm font-medium text-gray-700 mb-2"
+                  className="block text-sm font-medium text-gray-700 mb-1"
                 >
                   Comment
                 </label>
@@ -222,8 +222,8 @@ export default function RunApplicationPage() {
                   name="datasetComment"
                   value={nextDatasetData.datasetComment}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Optional comment for the resulting dataset..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                  placeholder="Optional comment..."
                 />
               </div>
             </div>
@@ -250,7 +250,7 @@ export default function RunApplicationPage() {
               <div className="pt-4">
                 <button
                   type="submit"
-                  className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200 font-medium"
+                  className="px-6 py-2 bg-brand-600 text-white rounded-md hover:bg-brand-700 transition-colors duration-200 font-medium"
                 >
                   Continue to Review →
                 </button>

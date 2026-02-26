@@ -89,7 +89,7 @@ export default function FilesPage() {
         <div className="text-center py-12">
           <div className="text-red-600 text-lg font-medium mb-2">Failed to load directory</div>
           <p className="text-gray-500">The requested path could not be found.</p>
-          <Link href="/files" className="text-blue-600 hover:underline mt-4 inline-block">
+          <Link href="/files" className="text-brand-600 hover:underline mt-4 inline-block">
             Return to root
           </Link>
         </div>
@@ -111,13 +111,13 @@ export default function FilesPage() {
               {index === breadcrumbs.length - 1 ? (
                 <span className="text-gray-900">{crumb}</span>
               ) : index === 0 ? (
-                <Link href="/files" className="hover:text-blue-600">
+                <Link href="/files" className="hover:text-brand-600">
                   {crumb}
                 </Link>
               ) : (
                 <Link
                   href={`/files/${pathSegments.slice(0, index).join('/')}`}
-                  className="hover:text-blue-600"
+                  className="hover:text-brand-600"
                 >
                   {crumb}
                 </Link>

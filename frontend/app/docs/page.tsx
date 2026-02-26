@@ -9,7 +9,7 @@ export default function DocsHomePage() {
           </p>
           <a 
             href="/docs/types" 
-            className="inline-flex items-center text-blue-600 hover:text-blue-800"
+            className="inline-flex items-center text-brand-600 hover:text-brand-800"
           >
             View Type Documentation →
           </a>
@@ -22,7 +22,7 @@ export default function DocsHomePage() {
           </p>
           <a
             href="/docs/api"
-            className="inline-flex items-center text-blue-600 hover:text-blue-800"
+            className="inline-flex items-center text-brand-600 hover:text-brand-800"
           >
             View API Documentation →
           </a>
@@ -35,7 +35,7 @@ export default function DocsHomePage() {
           </p>
           <a
             href="/docs/hooks"
-            className="inline-flex items-center text-blue-600 hover:text-blue-800"
+            className="inline-flex items-center text-brand-600 hover:text-brand-800"
           >
             View Hooks Documentation →
           </a>
@@ -48,7 +48,7 @@ export default function DocsHomePage() {
           </p>
           <a 
             href="/docs/testing" 
-            className="inline-flex items-center text-blue-600 hover:text-blue-800"
+            className="inline-flex items-center text-brand-600 hover:text-brand-800"
           >
             View Testing Documentation 
           </a>
@@ -61,7 +61,7 @@ export default function DocsHomePage() {
           </p>
           <a 
             href="/docs/loading-patterns" 
-            className="inline-flex items-center text-blue-600 hover:text-blue-800"
+            className="inline-flex items-center text-brand-600 hover:text-brand-800"
           >
             View Loading Patterns
           </a>
@@ -74,7 +74,7 @@ export default function DocsHomePage() {
           </p>
           <a 
             href="/docs/dynamic-forms" 
-            className="inline-flex items-center text-blue-600 hover:text-blue-800"
+            className="inline-flex items-center text-brand-600 hover:text-brand-800"
           >
             View Dynamic Forms →
           </a>
@@ -87,7 +87,7 @@ export default function DocsHomePage() {
           </p>
           <a 
             href="/docs/providers" 
-            className="inline-flex items-center text-blue-600 hover:text-blue-800"
+            className="inline-flex items-center text-brand-600 hover:text-brand-800"
           >
             View Providers
           </a>
@@ -100,7 +100,7 @@ export default function DocsHomePage() {
           </p>
           <a 
             href="/docs/pagination" 
-            className="inline-flex items-center text-blue-600 hover:text-blue-800"
+            className="inline-flex items-center text-brand-600 hover:text-brand-800"
           >
             View Pagination Guide →
           </a>
@@ -113,7 +113,7 @@ export default function DocsHomePage() {
           </p>
           <a 
             href="/docs/handsontable" 
-            className="inline-flex items-center text-blue-600 hover:text-blue-800"
+            className="inline-flex items-center text-brand-600 hover:text-brand-800"
           >
             View Handsontable Documentation
           </a>
@@ -126,7 +126,7 @@ export default function DocsHomePage() {
           </p>
           <a 
             href="/docs/linting" 
-            className="inline-flex items-center text-blue-600 hover:text-blue-800"
+            className="inline-flex items-center text-brand-600 hover:text-brand-800"
           >
             View Linting System →
           </a>
@@ -139,7 +139,7 @@ export default function DocsHomePage() {
           </p>
           <a 
             href="/docs/multiple-ui-triggers" 
-            className="inline-flex items-center text-blue-600 hover:text-blue-800"
+            className="inline-flex items-center text-brand-600 hover:text-brand-800"
           >
             View UI Triggers Guide →
           </a>
@@ -152,7 +152,7 @@ export default function DocsHomePage() {
           </p>
           <a 
             href="/docs/state-management" 
-            className="inline-flex items-center text-blue-600 hover:text-blue-800"
+            className="inline-flex items-center text-brand-600 hover:text-brand-800"
           >
             View State Management →
           </a>

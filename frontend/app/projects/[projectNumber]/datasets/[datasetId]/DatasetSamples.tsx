@@ -62,25 +62,25 @@ export default function DatasetSamples({ samples, projectNumber, datasetId}: Dat
     <div>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold">Dataset Samples</h3>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {/* Search field */}
           <input
             type="text"
             placeholder="Search samples..."
-            className="px-3 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="px-3 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
           />
-          
+
           {/* Action buttons */}
           {hasFactorColumns && (
             <Link
               href={`/projects/${projectNumber}/datasets/${datasetId}/factors/edit`}
-              className="px-3 py-1 text-sm font-medium text-blue-700 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors"
+              className="px-3 py-1 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
             >
               Edit Factors
             </Link>
           )}
           <button
-            className="px-3 py-1 text-sm font-medium text-blue-700 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors"
+            className="px-3 py-1 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
             onClick={async () => {
               const { path } = await datasetApi.getDatasetDataFolder(datasetId);
               router.push(`/files/${path}`);
@@ -90,32 +90,32 @@ export default function DatasetSamples({ samples, projectNumber, datasetId}: Dat
           </button>
           <Link
             href={`/projects/${projectNumber}/datasets/${datasetId}/samples/edit`}
-            className="px-3 py-1 text-sm font-medium text-blue-700 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors"
+            className="px-3 py-1 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
           >
             Edit Table
           </Link>
         </div>
       </div>
       <div className="overflow-x-auto">
-        <table className="min-w-full bg-white border border-gray-200 rounded-lg">
-          <thead className="bg-blue-600">
+        <table className="min-w-full bg-white rounded-lg">
+          <thead className="bg-brand-300 text-gray-800">
             <tr>
               {Array.from(new Set(samples.flatMap(sample => Object.keys(sample)))).map((column) => (
-                <th key={column} className="px-4 py-3 text-left text-sm font-semibold text-white uppercase tracking-wider border-b border-blue-500 max-w-[200px] truncate">
+                <th key={column} className="px-3 py-2 text-left text-sm font-semibold max-w-[200px] truncate">
                   {column}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
+          <tbody className="divide-y divide-gray-100 text-sm">
             {samples.map((sample: DatasetSample, index: number) => (
-              <tr key={sample.Name} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+              <tr key={sample.Name} className="odd:bg-white even:bg-gray-50/50 hover:bg-brand-50 transition-colors">
                 {Array.from(new Set(samples.flatMap(s => Object.keys(s)))).map((column) => {
                   const cellValue = sample[column] !== undefined ? String(sample[column]) : '-';
                   return (
-                    <td 
-                      key={column} 
-                      className="px-4 py-3 text-sm text-gray-900 border-b max-w-[200px] truncate cursor-default"
+                    <td
+                      key={column}
+                      className="px-3 py-2 text-gray-700 max-w-[200px] truncate cursor-default"
                       title={cellValue}
                     >
                       {cellValue}

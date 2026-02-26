@@ -12,7 +12,7 @@ const StatusBadge = ({ status }: { status: string }) => {
       case 'COMPLETED':
         return 'bg-green-100 text-green-800';
       case 'RUNNING':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-brand-100 text-brand-800';
       case 'FAILED':
         return 'bg-red-100 text-red-800';
       case 'CANCELLED+':
@@ -88,7 +88,7 @@ export default function DatasetJobsPage() {
         <div className="text-center py-12">
           <div className="text-red-600 text-lg font-medium mb-2">Failed to load jobs</div>
           <p className="text-gray-500 mb-4">There was an error loading the jobs for this dataset.</p>
-          <Link href={`/projects/${projectNumber}/datasets/${datasetId}`} className="text-blue-600 hover:underline">
+          <Link href={`/projects/${projectNumber}/datasets/${datasetId}`} className="text-brand-600 hover:underline">
             Back to Dataset
           </Link>
         </div>
@@ -140,7 +140,7 @@ export default function DatasetJobsPage() {
                   <td className="px-3 py-1.5 text-sm border-r text-center">
                     <Link
                       href={`/jobs/${job.id}/script`}
-                      className="inline-flex items-center px-3 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-full hover:bg-blue-200"
+                      className="inline-flex items-center px-3 py-1 text-xs font-medium text-brand-700 bg-brand-100 rounded-full hover:bg-brand-200"
                     >
                       Show Script
                     </Link>
@@ -169,7 +169,7 @@ export default function DatasetJobsPage() {
       <div className="mt-4">
         <Link
           href={`/projects/${projectNumber}/datasets/${datasetId}`}
-          className="text-blue-600 hover:underline text-sm"
+          className="text-brand-600 hover:underline text-sm"
         >
           Back to Dataset
         </Link>

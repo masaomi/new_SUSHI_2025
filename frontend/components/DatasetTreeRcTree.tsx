@@ -113,18 +113,18 @@ export default function DatasetTreeRcTree({
   const titleRender = (node: any) => {
     const isCurrent = currentDatasetId !== undefined && node.originalId === currentDatasetId;
     return (
-      <span>
+      <span className="text-sm">
         <a
           href={node.href}
-          className={`no-underline rounded px-1 hover:bg-blue-100 ${
-            isCurrent ? 'font-bold text-blue-700' : 'text-gray-900'
+          className={`no-underline rounded px-1 hover:bg-brand-50 ${
+            isCurrent ? 'font-bold text-brand-700' : 'text-gray-900 hover:text-brand-700'
           }`}
           onClick={(e) => e.stopPropagation()}
         >
           {node.title}
         </a>
         {node.comment && (
-          <span className="text-xs text-gray-500 italic ml-1">{node.comment}</span>
+          <span className="text-xs text-gray-400 italic ml-1">{node.comment}</span>
         )}
       </span>
     );
@@ -135,7 +135,7 @@ export default function DatasetTreeRcTree({
   }
 
   return (
-    <div className="border border-gray-300 rounded bg-white overflow-auto p-2"
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-auto p-3"
          style={{ maxHeight: 500 }}>
       <style>{`
         .rc-tree-icon__close,
