@@ -1,3 +1,7 @@
+Renewal_SUSHI_plan_2025/
+.kairos/
+.mcp.json
+
 # Backend (Rails)
 backend/log/*
 backend/tmp/*
