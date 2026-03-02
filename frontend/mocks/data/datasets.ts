@@ -88,3 +88,49 @@ export const mockDatasetsResponse = {
   per: 50,
   project_number: 1001,
 };
+
+// Full dataset response for detail page
+export const mockDatasetFull = {
+  id: 1,
+  name: "RNA-seq Analysis Dataset",
+  created_at: "2024-01-15T10:30:00Z",
+  user_login: "alice",
+  project_number: 1001,
+  samples_count: 50,
+  completed_samples: 45,
+  parent_id: null,
+  children_ids: [2, 3],
+  bfabric_id: 12345,
+  order_id: 9001,
+  comment: "Initial RNA-seq analysis",
+  sushi_app_name: "RNASeqAnalysis",
+  samples: [
+    { id: 101, name: "Sample_A1", status: "completed", read_count: 25000000 },
+    { id: 102, name: "Sample_A2", status: "completed", read_count: 28000000 },
+    { id: 103, name: "Sample_B1", status: "completed", read_count: 22000000 },
+  ],
+  applications: [
+    {
+      category: "QC",
+      apps: [
+        { class_name: "FastQC", description: "Quality control for sequencing data" },
+        { class_name: "MultiQC", description: "Aggregate QC reports" },
+      ],
+    },
+    {
+      category: "Alignment",
+      apps: [
+        { class_name: "STAR", description: "RNA-seq aligner" },
+        { class_name: "HISAT2", description: "Graph-based alignment" },
+      ],
+    },
+  ],
+};
+
+// Dataset tree for detail page
+export const mockDatasetTree = [
+  { id: 1, name: "RNA-seq Analysis Dataset", comment: "Root dataset", parent: "#" as const },
+  { id: 2, name: "Quality Control Report", comment: "QC results", parent: 1 },
+  { id: 3, name: "Differential Expression", comment: "DE analysis", parent: 1 },
+  { id: 4, name: "Pathway Analysis", comment: null, parent: 3 },
+];

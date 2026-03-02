@@ -94,6 +94,14 @@ export default function DocsLayout({
                   </li>
                   <li>
                     <Link 
+                      href="/docs/testing-logs" 
+                      className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+                    >
+                      Testing Logs
+                    </Link>
+                  </li>
+                  <li>
+                    <Link 
                       href="/docs/loading-patterns" 
                       className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
                     >
