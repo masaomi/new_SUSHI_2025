@@ -1,7 +1,8 @@
 "use client";
 
+import { useEffect, useCallback } from "react";
 import Link from "next/link";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { FormFieldComponent } from "@/lib/utils/form-renderer";
 import Breadcrumbs from "@/lib/ui/Breadcrumbs";
@@ -12,6 +13,8 @@ import {
 } from "@/lib/hooks";
 import { datasetApi } from "@/lib/api";
 import RunApplicationPageSkeleton from "./RunApplicationPageSkeleton";
+import FormStepper from "./FormStepper";
+import StepNavigation from "./StepNavigation";
 
 export default function RunApplicationPage() {
   // ============================================
@@ -23,6 +26,7 @@ export default function RunApplicationPage() {
     appName: string;
   }>();
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
 
   const projectNumber = Number(params.projectNumber);
@@ -61,7 +65,7 @@ export default function RunApplicationPage() {
   const {
     nextDatasetData,
     formValues,
-    fieldConfig,
+    paramGroups,
     handleInputChange,
     handleFieldChange,
     handleFieldBlur,
@@ -69,10 +73,54 @@ export default function RunApplicationPage() {
   } = useApplicationForm({
     appName,
     datasetName: dataset?.name,
-    formFields: formConfig?.form_fields,
+    paramGroups: formConfig?.param_groups,
     resubmitParams: resubmitData?.parameters,
     isResubmit,
   });
+
+  // ============================================
+  // STEP NAVIGATION (1-based: step=1, step=2, etc.)
+  // ============================================
+  const currentStepParam = searchParams.get("step");
+  const currentStepNumber = currentStepParam !== null
+    ? Math.max(1, Math.min(parseInt(currentStepParam, 10), paramGroups.length))
+    : 1;
+  const currentStepIndex = currentStepNumber - 1; // Convert to 0-based for array access
+  const currentStep = paramGroups[currentStepIndex];
+  const isFirstStep = currentStepNumber === 1;
+  const isLastStep = currentStepNumber === paramGroups.length;
+
+  // Redirect to step=1 if no step param and we have groups
+  useEffect(() => {
+    if (paramGroups.length > 0 && currentStepParam === null) {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.set("step", "1");
+      router.replace(`${pathname}?${newParams.toString()}`);
+    }
+  }, [paramGroups.length, currentStepParam, searchParams, pathname, router]);
+
+  const goToStep = useCallback((stepIndex: number) => {
+    const newParams = new URLSearchParams(searchParams);
+    // stepIndex is 0-based from FormStepper, convert to 1-based for URL
+    newParams.set("step", (stepIndex + 1).toString());
+    router.push(`${pathname}?${newParams.toString()}`);
+  }, [searchParams, pathname, router]);
+
+  const goNext = useCallback(() => {
+    if (currentStepNumber < paramGroups.length) {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.set("step", (currentStepNumber + 1).toString());
+      router.push(`${pathname}?${newParams.toString()}`);
+    }
+  }, [currentStepNumber, paramGroups.length, searchParams, pathname, router]);
+
+  const goBack = useCallback(() => {
+    if (currentStepNumber > 1) {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.set("step", (currentStepNumber - 1).toString());
+      router.push(`${pathname}?${newParams.toString()}`);
+    }
+  }, [currentStepNumber, searchParams, pathname, router]);
 
   // ============================================
   // SUBMIT HANDLER
@@ -149,8 +197,8 @@ export default function RunApplicationPage() {
   }
 
   // Check if app is available (currently just logs)
-  const isAppAvailable = dataset.applications?.some((category) =>
-    category.apps.some((app) => app.class_name === appName)
+  const isAppAvailable = dataset.applications?.some((category: { apps: { class_name: string }[] }) =>
+    category.apps.some((app: { class_name: string }) => app.class_name === appName)
   );
   if (!isAppAvailable) {
     console.log("This Application cannot run on this dataset");
@@ -186,78 +234,92 @@ export default function RunApplicationPage() {
         </Link>
       </div>
 
-      <div className="space-y-6">
-        {/* NextDataset Section */}
-        <div className="bg-white border rounded-lg overflow-hidden">
-          <div className="px-6 py-4">
-            <h3 className="text-lg font-semibold mb-4">NextDataset</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label
-                  htmlFor="datasetName"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Name
-                </label>
-                <input
-                  type="text"
-                  id="datasetName"
-                  name="datasetName"
-                  value={nextDatasetData.datasetName}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
-                  placeholder={`${appName}_${dataset.name}_${new Date().toISOString().slice(0, 10)}`}
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="datasetComment"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Comment
-                </label>
-                <input
-                  type="text"
-                  id="datasetComment"
-                  name="datasetComment"
-                  value={nextDatasetData.datasetComment}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
-                  placeholder="Optional comment..."
-                />
-              </div>
+      {/* NextDataset Section - above steps since it doesn't change */}
+      <div className="bg-white border rounded-lg overflow-hidden mb-6">
+        <div className="px-6 py-4">
+          <h3 className="text-lg font-semibold mb-4">NextDataset</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label
+                htmlFor="datasetName"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Name
+              </label>
+              <input
+                type="text"
+                id="datasetName"
+                name="datasetName"
+                value={nextDatasetData.datasetName}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                placeholder={`${appName}_${dataset.name}_${new Date().toISOString().slice(0, 10)}`}
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="datasetComment"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Comment
+              </label>
+              <input
+                type="text"
+                id="datasetComment"
+                name="datasetComment"
+                value={nextDatasetData.datasetComment}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                placeholder="Optional comment..."
+              />
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Parameters Section */}
-        <div className="bg-white border rounded-lg overflow-hidden">
-          <div className="p-6">
-            <h3 className="text-lg font-semibold mb-6">Parameters</h3>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
-                {fieldConfig.map((field) => (
-                  <FormFieldComponent
-                    key={field.name}
-                    field={field}
-                    value={formValues[field.name]}
-                    onChange={handleFieldChange}
-                    onBlur={handleFieldBlur}
-                    onKeyDown={handleKeyDown}
-                  />
-                ))}
+      {/* Step Progress Indicator */}
+      {paramGroups.length > 0 && (
+        <FormStepper
+          steps={paramGroups}
+          currentStepIndex={currentStepIndex}
+          onStepClick={goToStep}
+        />
+      )}
+
+      <div className="space-y-6">
+        {/* Current Step Parameters */}
+        {currentStep && (
+          <div className="bg-white border rounded-lg overflow-hidden">
+            <div className="px-6 py-4">
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold">{currentStep.title}</h3>
+                {currentStep.description && (
+                  <p className="text-sm text-gray-500 mt-1">{currentStep.description}</p>
+                )}
               </div>
-              <div className="pt-4">
-                <button
-                  type="submit"
-                  className="px-6 py-2 bg-brand-600 text-white rounded-md hover:bg-brand-700 transition-colors duration-200 font-medium"
-                >
-                  Continue to Review →
-                </button>
-              </div>
-            </form>
+              <form onSubmit={handleSubmit}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                  {currentStep.fields.map((field) => (
+                    <FormFieldComponent
+                      key={field.name}
+                      field={field}
+                      value={formValues[field.name]}
+                      onChange={handleFieldChange}
+                      onBlur={handleFieldBlur}
+                      onKeyDown={handleKeyDown}
+                    />
+                  ))}
+                </div>
+                <StepNavigation
+                  onBack={goBack}
+                  onNext={goNext}
+                  isFirstStep={isFirstStep}
+                  isLastStep={isLastStep}
+                />
+              </form>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

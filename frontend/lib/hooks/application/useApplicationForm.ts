@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { applicationApi } from '@/lib/api';
-import { AppFormField, DynamicFormData } from '@/lib/types';
-import { initializeFormData } from '@/lib/utils/form-renderer';
+import { DynamicFormData, ParamGroup } from '@/lib/types';
+import { initializeFormDataFromGroups, flattenParamGroups } from '@/lib/utils/form-renderer';
 
 interface UseApplicationFormParams {
   appName: string;
   datasetName: string | undefined;
-  formFields: AppFormField[] | undefined;
+  paramGroups: ParamGroup[] | undefined;
   resubmitParams: Record<string, any> | undefined;
   isResubmit: boolean;
 }
@@ -19,7 +19,7 @@ interface NextDatasetData {
 export function useApplicationForm({
   appName,
   datasetName,
-  formFields,
+  paramGroups,
   resubmitParams,
   isResubmit,
 }: UseApplicationFormParams) {
@@ -31,7 +31,7 @@ export function useApplicationForm({
     datasetComment: '',
   });
   const [formValues, setFormValues] = useState<DynamicFormData>({});
-  const [fieldConfig, setFieldConfig] = useState<AppFormField[]>([]);
+  const [groupConfig, setGroupConfig] = useState<ParamGroup[]>([]);
 
   // ============================================
   // EFFECTS
@@ -50,8 +50,8 @@ export function useApplicationForm({
 
   // Initialize form when schema loads (with optional resubmit prepopulation)
   useEffect(() => {
-    if (formFields) {
-      const initialData = initializeFormData(formFields);
+    if (paramGroups && paramGroups.length > 0) {
+      const initialData = initializeFormDataFromGroups(paramGroups);
 
       // If resubmit, merge the previous job's parameters
       if (isResubmit && resubmitParams) {
@@ -63,9 +63,9 @@ export function useApplicationForm({
       }
 
       setFormValues(initialData);
-      setFieldConfig(formFields);
+      setGroupConfig(paramGroups);
     }
-  }, [formFields, isResubmit, resubmitParams]);
+  }, [paramGroups, isResubmit, resubmitParams]);
 
   // ============================================
   // HANDLERS
@@ -92,12 +92,13 @@ export function useApplicationForm({
     try {
       const validationResponse = await applicationApi.validateAppConfig(appName, formValues);
 
-      if (validationResponse.application?.form_fields) {
-        setFieldConfig(validationResponse.application.form_fields);
+      if (validationResponse.application?.param_groups) {
+        setGroupConfig(validationResponse.application.param_groups);
 
         // Update form values with new defaults from validation
         const newValues = { ...formValues };
-        validationResponse.application.form_fields.forEach((field) => {
+        const allFields = flattenParamGroups(validationResponse.application.param_groups);
+        allFields.forEach((field) => {
           if (field.default_value !== undefined) {
             newValues[field.name] = field.default_value;
           }
@@ -113,12 +114,13 @@ export function useApplicationForm({
     if (e.key === 'Enter') {
       e.preventDefault();
 
-      const currentIndex = fieldConfig.findIndex((f) => f.name === fieldName);
+      const allFields = flattenParamGroups(groupConfig);
+      const currentIndex = allFields.findIndex((f) => f.name === fieldName);
       if (currentIndex === -1) return;
 
       // Find next focusable field (skip sections and disabled fields)
-      for (let i = currentIndex + 1; i < fieldConfig.length; i++) {
-        const nextField = fieldConfig[i];
+      for (let i = currentIndex + 1; i < allFields.length; i++) {
+        const nextField = allFields[i];
         if (nextField.type !== 'section' && !nextField.disabled) {
           const nextElement = document.getElementById(nextField.name);
           if (nextElement) {
@@ -137,7 +139,7 @@ export function useApplicationForm({
     // State
     nextDatasetData,
     formValues,
-    fieldConfig,
+    paramGroups: groupConfig,
 
     // Handlers
     handleInputChange,

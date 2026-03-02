@@ -1,4 +1,4 @@
-// Simple flat structure for dynamic app forms
+// Grouped structure for dynamic app forms
 
 export interface AppFormField {
   name: string;
@@ -13,6 +13,13 @@ export interface AppFormField {
   disabled?: boolean;
 }
 
+export interface ParamGroup {
+  id: string;
+  title: string;
+  description?: string;
+  fields: AppFormField[];
+}
+
 export interface AppFormResponse {
   application: {
     name: string;
@@ -21,10 +28,8 @@ export interface AppFormResponse {
     description: string;
     required_columns: string[];
     required_params: string[];
-    form_fields: AppFormField[];
+    param_groups: ParamGroup[];
     modules: string[];
-    // inherit_tags: boolean;
-    // inherit_columns: string[];
   }
 }
 

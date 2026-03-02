@@ -1,5 +1,5 @@
 import React from 'react';
-import { AppFormField, DynamicFormData } from '@/lib/types';
+import { AppFormField, DynamicFormData, ParamGroup } from '@/lib/types';
 
 interface FieldRendererProps {
   field: AppFormField;
@@ -200,7 +200,7 @@ export const FormFieldComponent: React.FC<FormFieldComponentProps> = ({ field, v
   );
 };
 
-// Utility function to initialize form data with defaults
+// Utility function to initialize form data with defaults from a flat field array
 export const initializeFormData = (fields: AppFormField[]): DynamicFormData => {
   const formData: DynamicFormData = {};
   fields.forEach((field) => {
@@ -231,4 +231,15 @@ export const initializeFormData = (fields: AppFormField[]): DynamicFormData => {
     formData[field.name] = defaultValue;
   });
   return formData;
+};
+
+// Utility to flatten param_groups into a single array of fields
+export const flattenParamGroups = (groups: ParamGroup[]): AppFormField[] => {
+  return groups.flatMap((group) => group.fields);
+};
+
+// Utility to initialize form data from param_groups
+export const initializeFormDataFromGroups = (groups: ParamGroup[]): DynamicFormData => {
+  const allFields = flattenParamGroups(groups);
+  return initializeFormData(allFields);
 };
