@@ -5,7 +5,7 @@ import "highlight.js/styles/github.css";
 import "handsontable/styles/handsontable.min.css"
 import { AuthProvider } from "@/providers/AuthContext";
 import { QueryProvider } from "@/providers/QueryProvider";
-import Header from "@/components/shared/Header";
+import Header from "./Header";
 
 const inter = Inter({
   variable: "--font-geist-sans",

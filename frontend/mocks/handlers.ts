@@ -17,19 +17,19 @@ export const handlers = [
     const projectId = Number(params.projectId)
     
     // Extract query parameters for filtering
-    const datasetName = url.searchParams.get('datasetName') || ''
+    const q = url.searchParams.get('q') || ''
     const user = url.searchParams.get('user') || ''
     const page = Number(url.searchParams.get('page')) || 1
     const per = Number(url.searchParams.get('per')) || 50
 
     // Filter datasets based on query parameters
-    let filteredDatasets = mockDatasets.filter(dataset => 
+    let filteredDatasets = mockDatasets.filter(dataset =>
       dataset.project_number === projectId
     )
 
-    if (datasetName) {
+    if (q) {
       filteredDatasets = filteredDatasets.filter(dataset =>
-        dataset.name.toLowerCase().includes(datasetName.toLowerCase())
+        dataset.name.toLowerCase().includes(q.toLowerCase())
       )
     }
 

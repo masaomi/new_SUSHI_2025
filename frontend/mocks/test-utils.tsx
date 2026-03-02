@@ -29,6 +29,6 @@ export function renderWithQuery(ui: React.ReactElement, options?: Omit<RenderOpt
 }
 
 // Re-export MSW server for test-specific handler overrides
-export { server } from '../mocks/server';
+export { server } from './server';
 
 

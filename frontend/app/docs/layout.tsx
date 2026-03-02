@@ -101,11 +101,19 @@ export default function DocsLayout({
                     </Link>
                   </li>
                   <li>
-                    <Link 
-                      href="/docs/dynamic-forms" 
+                    <Link
+                      href="/docs/dynamic-forms"
                       className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
                     >
                       Dynamic Forms
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/docs/running-applications"
+                      className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+                    >
+                      Running Applications
                     </Link>
                   </li>
                   <li>

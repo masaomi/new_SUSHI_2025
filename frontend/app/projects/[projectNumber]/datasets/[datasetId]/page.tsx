@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Breadcrumbs from '@/lib/ui/Breadcrumbs';
 import { useDatasetBase, useDatasetTree } from '@/lib/hooks';
 import { datasetApi } from '@/lib/api';
-import DatasetTreeRcTree from '@/components/DatasetTreeRcTree';
+import DatasetTreeRcTree from '../DatasetTreeRcTree';
 import DatasetApps from './DatasetApps';
 import DatasetSamples from './DatasetSamples';
 import DatasetInfoCard from './DatasetInfoCard';

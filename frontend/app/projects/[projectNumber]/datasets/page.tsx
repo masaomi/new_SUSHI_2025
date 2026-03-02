@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { projectApi } from '@/lib/api';
 import { usePagination, useSearch } from '@/lib/hooks';
-import DatasetTreeRcTree from '@/components/DatasetTreeRcTree';
+import DatasetTreeRcTree from './DatasetTreeRcTree';
 
 export default function ProjectDatasetsPage() {
   const params = useParams<{ projectNumber: string }>();

@@ -1,85 +1,118 @@
 # Testing Strategy Overview
+**Last Updated:** 2026-03-02
+
 
 ## Running Tests
 
 ```bash
 npm run test         # Interactive watch mode
-npm run test:run     # Single run
+npm run test:run     # Single run (CI-friendly)
 npm run test:coverage # Coverage report
 npm run test:ui      # Visual test interface
 ```
 
 ## Testing Stack
-- **Vitest** 
-- **@testing-library/react** 
-- **MSW (Mock Service Worker)** 
-- **happy-dom**
+
+| Tool | Purpose | Why This Tool? |
+|------|---------|----------------|
+| **Vitest** | Test runner | 2-10x faster than Jest, native ESM, Vite-compatible |
+| **@testing-library/react** | Component testing | Industry standard, "test behavior not implementation" |
+| **MSW v2** | API mocking | Network-level interception, works everywhere |
+| **happy-dom** | DOM environment | Faster than jsdom, sufficient for most tests |
+
 ```
-┌─────────────────────────────┐
-│    Your Test Code           │ ← You write: getByText('hello'), expect().toBe()
-├─────────────────────────────┤
-│ React Testing Library (RTL) │ ← Provides: getByText, render, fireEvent, user-event
-├─────────────────────────────┤  
-│ happy-dom                   │ ← Provides: document, window, DOM APIs (faster than jsdom)
-├─────────────────────────────┤
-│ Vitest                      │ ← Provides: test runner, expect, mocks, coverage, native ESM
-├─────────────────────────────┤
-│ Node.js                     │ ← Runtime environment where tests execute
-└─────────────────────────────┘
+┌─────────────────────────────────┐
+│    Your Test Code               │ ← You write: getByText('hello'), expect().toBe()
+├─────────────────────────────────┤
+│ React Testing Library (RTL)     │ ← Provides: getByText, render, fireEvent
+├─────────────────────────────────┤
+│ happy-dom                       │ ← Provides: document, window, DOM APIs
+├─────────────────────────────────┤
+│ Vitest                          │ ← Provides: test runner, expect, mocks, coverage
+├─────────────────────────────────┤
+│ Node.js                         │ ← Runtime environment
+└─────────────────────────────────┘
 ```
 
+## Test File Patterns
 
-### Test File Patterns
-Vitest automatically discovers and runs files matching these patterns:
+Vitest auto-discovers:
 - `**/__tests__/**/*.{js,jsx,ts,tsx}`
 - `**/*.{test,spec}.{js,jsx,ts,tsx}`
 
-### Test File Organization
-We use **co-located testing** where test files live next to the code they test (e.g., `useSearch.ts` and `useSearch.test.ts` in the same directory). This approach makes tests easy to find and maintain alongside the implementation.
+### File Organization (Co-located)
 
-Specialized testing:
-- **Basic tests**: `page.test.tsx`
-- **Specialized tests**: `page.accessibility.test.tsx`
-- **Mock variations**: `datasets.error-state.test.ts` (uses custom MSW handlers to simulate API errors)
+```
+lib/hooks/
+├── useSearch.ts
+├── useSearch.test.ts      ← Lives next to implementation
+└── usePagination.ts
+```
 
-## renderWithQuery 
-`useQuery` needs to be mocked.
-The wrapper creates a fresh React Query client configured for testing 
+Naming conventions:
+- Basic tests: `Component.test.tsx`
+- Accessibility: `Component.accessibility.test.tsx`
+- Error states: `Component.error-state.test.tsx`
+
+## renderWithQuery
+
+Components using `useQuery` need the QueryClientProvider wrapper:
 
 ```typescript
-test('dataset page loads data', () => {
-  render(<DatasetPage />)  // Error: useQuery must be used within QueryClientProvider
-  renderWithQuery(<DatasetPage />)  // Component can safely use useQuery hooks
+// ❌ Fails - no provider
+render(<DatasetPage />)
+
+// ✅ Works - wrapped with test QueryClient
+renderWithQuery(<DatasetPage />)
+```
+
+The wrapper creates an isolated QueryClient with:
+- No retries (fail fast)
+- No caching (test isolation)
+- No stale time (always refetch)
+
+## MSW (Mock Service Worker)
+
+MSW intercepts HTTP requests at the network layer - your code makes real `fetch()` calls, MSW catches them before they leave.
+
+### Files Structure
+
+```
+mocks/
+├── handlers.ts    # API endpoint definitions
+├── server.ts      # Vitest lifecycle setup
+└── data/
+    ├── datasets.ts  # Mock dataset responses
+    └── jobs.ts      # Mock job responses
+```
+
+### Handler Pattern
+
+```typescript
+// handlers.ts - uses wildcard for any host
+http.get('*/api/v1/projects/:id/datasets', ({ params }) => {
+  return HttpResponse.json(mockDatasets);
 })
 ```
 
-## MSW (Mock Service Worker) Data Flow
+The `*` prefix matches any hostname, working in both dev and test environments.
 
-MSW intercepts HTTP requests at the network layer, creating the illusion of a real API without actually running a server.
-MSW sits between your application code and the actual network, capturing real HTTP requests and routing them to handler functions that return mock responses. 
+### Overriding Handlers in Tests
 
-### MSW Files Structure
+```typescript
+import { server } from '@/mocks/server';
+import { http, HttpResponse } from 'msw';
 
-The `mocks/` directory contains the MSW configuration that enables this request interception:
+test('handles API error', async () => {
+  // Override default handler for this test only
+  server.use(
+    http.get('*/api/v1/projects/:id/datasets', () => {
+      return HttpResponse.json({ error: 'Not found' }, { status: 404 });
+    })
+  );
 
-- **`handlers.ts`** - Defines API endpoint responses using `*/api/v1/...` patterns to match any hostname (e.g., `*/api/v1/projects/:id/datasets`). Contains filtering logic based on request parameters.
-- **`server.ts`** - Sets up MSW for Node.js testing environment with Vitest lifecycle hooks (`beforeAll`, `afterEach`, `afterAll`)
-- **`data/`** - Contains realistic mock data files (`datasets.ts`, `jobs.ts`) that handlers return, structured to match actual API responses
+  renderWithQuery(<DatasetPage />);
+  expect(await screen.findByText('Error loading')).toBeInTheDocument();
+});
+```
 
-MSW is only active during testing (`npm run test`) and does not affect your development or production environments.
-
-### MSW Handler Patterns (`mocks/handlers.ts`)
-API handlers use `*/api/v1/...` patterns
-- Tests hit full URLs like `http://localhost:4000/api/v1/projects`
-- The `*` wildcard matches any hostname/port combination
-- This handles both development (`localhost:4000`) and test environments
-
-## Implementation List
-- visual regression 
-- shared utilities 
-- hooks 
-- api layer
-- core components (search, pagination, sorting/filtering)
-- page components
-- accessibility testing 
-- performance testing
