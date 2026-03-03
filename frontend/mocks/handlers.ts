@@ -95,6 +95,13 @@ export const handlers = [
     })
   }),
 
+  // GET /api/v1/projects/:projectId/datasets/tree - Get project datasets tree
+  http.get('*/api/v1/projects/:projectId/datasets/tree', () => {
+    return HttpResponse.json({
+      tree: mockDatasetTree,
+    })
+  }),
+
   // GET /api/v1/projects/:projectId/datasets/:datasetId - Get single dataset (legacy)
   http.get('*/api/v1/projects/:projectId/datasets/:datasetId', ({ params }) => {
     const datasetId = Number(params.datasetId)

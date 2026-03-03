@@ -41,6 +41,7 @@ export default defineConfig({
         '**/*.config.{js,ts}',
         'mocks/',
         'docs/',
+        'app/docs/',
         'config/',
         'public/'
       ],
