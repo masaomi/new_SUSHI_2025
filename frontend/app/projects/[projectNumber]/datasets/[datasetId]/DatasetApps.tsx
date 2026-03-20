@@ -51,15 +51,12 @@ export default function DatasetApps({runnableApps, datasetId, projectNumber }: D
             <h4 className="text-md font-medium text-gray-800 capitalize whitespace-nowrap">
               {category.category}
             </h4>
-            <div className="flex overflow-x-auto" style={{ gap: '0.25rem' }}>
+            <div className="flex overflow-x-auto gap-1">
               {category.apps.map((app) => (
                 <Link
                   key={app.class_name}
                   href={`/projects/${projectNumber}/datasets/${datasetId}/run-application/${app.class_name}`}
-                  className="px-3 py-1.5 text-white rounded text-sm font-medium whitespace-nowrap transition-colors duration-200"
-                  style={{ backgroundColor: '#5bc0de' }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#46a5c4'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#5bc0de'}
+                  className="px-3 py-1.5 text-white rounded text-sm font-medium whitespace-nowrap bg-brand-600 hover:bg-brand-700 transition-colors"
                 >
                   {app.class_name}
                 </Link>

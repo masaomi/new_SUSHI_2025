@@ -203,7 +203,7 @@ export default function EditableTable({
       <div className="mt-4 flex justify-end items-center space-x-2">
         <button 
           onClick={handleSaveChanges}
-          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+          className="px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-md hover:bg-brand-700"
         >
           Save Changes
         </button>

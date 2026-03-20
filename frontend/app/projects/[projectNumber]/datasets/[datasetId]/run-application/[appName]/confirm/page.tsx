@@ -127,7 +127,7 @@ export default function ConfirmJobPage() {
           </p>
           <Link
             href={`/projects/${projectNumber}/datasets`}
-            className="text-blue-600 hover:underline"
+            className="text-brand-600 hover:underline"
           >
             ← Back to Datasets
           </Link>
@@ -147,7 +147,7 @@ export default function ConfirmJobPage() {
         </p>
         <Link
           href={`/projects/${projectNumber}/datasets`}
-          className="text-blue-600 hover:underline"
+          className="text-brand-600 hover:underline"
         >
           ← Back to Datasets
         </Link>
@@ -164,7 +164,7 @@ export default function ConfirmJobPage() {
         <p className="text-gray-700 mb-6">{dataLoadError}</p>
         <Link
           href={`/projects/${projectNumber}/datasets/${datasetId}/run-application/${appName}`}
-          className="text-blue-600 hover:underline"
+          className="text-brand-600 hover:underline"
         >
           ← Back to Application Form
         </Link>
@@ -286,7 +286,7 @@ export default function ConfirmJobPage() {
           <button
             onClick={handleConfirmSubmission}
             disabled={isSubmitting}
-            className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 px-6 py-3 bg-brand-600 text-white rounded-md hover:bg-brand-700 transition-colors duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting ? "Submitting Job..." : "Confirm & Submit Job"}
           </button>

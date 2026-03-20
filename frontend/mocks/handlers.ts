@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw'
-import { mockDatasets, mockProjects, mockDatasetsResponse } from './data/datasets'
+import { mockDatasets, mockProjects, mockDatasetsResponse, mockDatasetFull, mockDatasetTree } from './data/datasets'
 import { mockJobs, mockJobsResponse } from './data/jobs'
 
 export const handlers = [
@@ -17,19 +17,19 @@ export const handlers = [
     const projectId = Number(params.projectId)
     
     // Extract query parameters for filtering
-    const datasetName = url.searchParams.get('datasetName') || ''
+    const q = url.searchParams.get('q') || ''
     const user = url.searchParams.get('user') || ''
     const page = Number(url.searchParams.get('page')) || 1
     const per = Number(url.searchParams.get('per')) || 50
 
     // Filter datasets based on query parameters
-    let filteredDatasets = mockDatasets.filter(dataset => 
+    let filteredDatasets = mockDatasets.filter(dataset =>
       dataset.project_number === projectId
     )
 
-    if (datasetName) {
+    if (q) {
       filteredDatasets = filteredDatasets.filter(dataset =>
-        dataset.name.toLowerCase().includes(datasetName.toLowerCase())
+        dataset.name.toLowerCase().includes(q.toLowerCase())
       )
     }
 
@@ -57,28 +57,21 @@ export const handlers = [
   http.get('*/api/v1/projects/:projectId/jobs', ({ request, params }) => {
     const url = new URL(request.url)
     const projectId = Number(params.projectId)
-    
+
     // Extract query parameters for filtering
-    const datasetName = url.searchParams.get('datasetName') || ''
     const user = url.searchParams.get('user') || ''
     const status = url.searchParams.get('status') || ''
     const page = Number(url.searchParams.get('page')) || 1
     const per = Number(url.searchParams.get('per')) || 50
 
     // Filter jobs based on query parameters
-    let filteredJobs = mockJobs.filter(job => 
+    let filteredJobs = mockJobs.filter(job =>
       job.project_id === projectId
     )
 
-    if (datasetName) {
-      filteredJobs = filteredJobs.filter(job =>
-        job.dataset_name.toLowerCase().includes(datasetName.toLowerCase())
-      )
-    }
-
     if (user) {
       filteredJobs = filteredJobs.filter(job =>
-        job.user_login.toLowerCase().includes(user.toLowerCase())
+        job.user.toLowerCase().includes(user.toLowerCase())
       )
     }
 
@@ -102,16 +95,86 @@ export const handlers = [
     })
   }),
 
-  // GET /api/v1/projects/:projectId/datasets/:datasetId - Get single dataset
+  // GET /api/v1/projects/:projectId/datasets/tree - Get project datasets tree
+  http.get('*/api/v1/projects/:projectId/datasets/tree', () => {
+    return HttpResponse.json({
+      tree: mockDatasetTree,
+    })
+  }),
+
+  // GET /api/v1/projects/:projectId/datasets/:datasetId - Get single dataset (legacy)
   http.get('*/api/v1/projects/:projectId/datasets/:datasetId', ({ params }) => {
     const datasetId = Number(params.datasetId)
     const dataset = mockDatasets.find(d => d.id === datasetId)
-    
+
     if (!dataset) {
       return new HttpResponse(null, { status: 404 })
     }
 
     return HttpResponse.json(dataset)
+  }),
+
+  // GET /api/v1/datasets/:datasetId - Get full dataset details
+  http.get('*/api/v1/datasets/:datasetId', ({ params }) => {
+    const datasetId = Number(params.datasetId)
+
+    if (datasetId === 1) {
+      return HttpResponse.json(mockDatasetFull)
+    }
+
+    // For other IDs, return a minimal version based on mockDatasets
+    const dataset = mockDatasets.find(d => d.id === datasetId)
+    if (!dataset) {
+      return new HttpResponse(null, { status: 404 })
+    }
+
+    return HttpResponse.json({
+      ...dataset,
+      samples: [],
+      applications: [],
+    })
+  }),
+
+  // GET /api/v1/datasets/:datasetId/tree - Get dataset tree
+  http.get('*/api/v1/datasets/:datasetId/tree', ({ params }) => {
+    const datasetId = Number(params.datasetId)
+
+    // Return tree filtered to show relevant nodes
+    const tree = mockDatasetTree.filter(node =>
+      node.id === datasetId ||
+      node.parent === datasetId ||
+      node.parent === "#"
+    )
+
+    return HttpResponse.json(tree.length > 0 ? tree : mockDatasetTree)
+  }),
+
+  // GET /api/v1/application_configs/:appName - Get application form schema
+  http.get('*/api/v1/application_configs/:appName', ({ params }) => {
+    const appName = params.appName
+
+    return HttpResponse.json({
+      application: {
+        name: appName,
+        class_name: appName,
+        category: 'Analysis',
+        description: `Mock application: ${appName}`,
+        required_columns: ['Name'],
+        required_params: ['cores'],
+        modules: ['Tools/Analysis'],
+        param_groups: [
+          {
+            id: 'resources',
+            title: 'Resource Parameters',
+            description: 'Configure compute resources',
+            fields: [
+              { name: 'cores', type: 'integer', default_value: 4, description: 'CPU cores' },
+              { name: 'ram', type: 'integer', default_value: 16, description: 'RAM in GB' },
+            ],
+          },
+        ],
+      },
+    })
   }),
 
   // Error simulation handlers (useful for testing error states)

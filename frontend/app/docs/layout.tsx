@@ -17,7 +17,7 @@ export default function DocsLayout({
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <Link href="/" className="text-blue-600 hover:text-blue-800">
+              <Link href="/" className="text-brand-600 hover:text-brand-800">
                 ← Back to App
               </Link>
               <button
@@ -94,6 +94,14 @@ export default function DocsLayout({
                   </li>
                   <li>
                     <Link 
+                      href="/docs/testing-logs" 
+                      className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+                    >
+                      Testing Logs
+                    </Link>
+                  </li>
+                  <li>
+                    <Link 
                       href="/docs/loading-patterns" 
                       className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
                     >
@@ -101,11 +109,19 @@ export default function DocsLayout({
                     </Link>
                   </li>
                   <li>
-                    <Link 
-                      href="/docs/dynamic-forms" 
+                    <Link
+                      href="/docs/dynamic-forms"
                       className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
                     >
                       Dynamic Forms
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/docs/running-applications"
+                      className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+                    >
+                      Running Applications
                     </Link>
                   </li>
                   <li>

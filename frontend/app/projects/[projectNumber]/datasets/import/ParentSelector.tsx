@@ -110,7 +110,7 @@ export default function ParentSelector({ treeNodes, selectedId, onSelect, search
       <div key={node.id}>
         <div
           className={`flex items-center py-1.5 px-2 cursor-pointer transition-colors ${
-            isSelected ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50'
+            isSelected ? 'bg-brand-50 hover:bg-brand-100' : 'hover:bg-gray-50'
           }`}
           style={{ paddingLeft: `${level * 20 + 8}px` }}
           onClick={() => onSelect(isSelected ? null : node.id)}
@@ -137,7 +137,7 @@ export default function ParentSelector({ treeNodes, selectedId, onSelect, search
           <div
             className={`w-4 h-4 rounded-full border-2 mr-2 flex items-center justify-center flex-shrink-0 transition-colors ${
               isSelected
-                ? 'border-blue-600 bg-blue-600'
+                ? 'border-brand-600 bg-brand-600'
                 : 'border-gray-300'
             }`}
           >

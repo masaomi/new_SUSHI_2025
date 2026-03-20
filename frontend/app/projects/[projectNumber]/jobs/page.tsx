@@ -13,7 +13,7 @@ const StatusBadge = ({ status }: { status: string }) => {
       case 'COMPLETED':
         return 'bg-green-100 text-green-800';
       case 'RUNNING':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-brand-100 text-brand-800';
       case 'FAILED':
         return 'bg-red-100 text-red-800';
       case 'CANCELLED+':
@@ -193,7 +193,7 @@ export default function ProjectJobsPage() {
             <select
               value={per}
               onChange={(e) => changePerPage(Number(e.target.value))}
-              className="border rounded px-2 py-1 text-sm"
+              className="border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
             >
               <option value={10}>10</option>
               <option value={25}>25</option>
@@ -211,7 +211,7 @@ export default function ProjectJobsPage() {
             <select
               value={statusLocal}
               onChange={(e) => setStatusLocal(e.target.value)}
-              className="border rounded px-2 py-1 text-sm min-w-32"
+              className="border border-gray-300 rounded-md px-2 py-1.5 text-sm min-w-32 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
             >
               {statusOptions.map(option => (
                 <option key={option.value} value={option.value}>{option.label}</option>
@@ -221,31 +221,31 @@ export default function ProjectJobsPage() {
 
           <div className="flex items-center gap-2">
             <label className="text-sm text-gray-600">User:</label>
-            <input 
-              value={userLocal} 
-              onChange={(e) => setUserLocal(e.target.value)} 
-              placeholder="Filter by user..." 
-              className="border rounded px-2 py-1 text-sm" 
+            <input
+              value={userLocal}
+              onChange={(e) => setUserLocal(e.target.value)}
+              placeholder="Filter by user..."
+              className="border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
             />
           </div>
 
           <div className="flex items-center gap-2">
             <label className="text-sm text-gray-600">From:</label>
-            <input 
+            <input
               type="date"
-              value={fromDateLocal} 
-              onChange={(e) => setFromDateLocal(e.target.value)} 
-              className="border rounded px-2 py-1 text-sm" 
+              value={fromDateLocal}
+              onChange={(e) => setFromDateLocal(e.target.value)}
+              className="border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
             />
           </div>
 
           <div className="flex items-center gap-2">
             <label className="text-sm text-gray-600">To:</label>
-            <input 
+            <input
               type="date"
-              value={toDateLocal} 
-              onChange={(e) => setToDateLocal(e.target.value)} 
-              className="border rounded px-2 py-1 text-sm" 
+              value={toDateLocal}
+              onChange={(e) => setToDateLocal(e.target.value)}
+              className="border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
             />
           </div>
 
@@ -255,93 +255,85 @@ export default function ProjectJobsPage() {
               clearFilters();
               setUserLocal('');
             }}
-            className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 border border-gray-300 rounded hover:bg-gray-200 transition-colors"
+            className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
           >
             Clear Filters
           </button>
         </div>
       </form>
 
-      <div className="overflow-x-auto">
-        <table className="min-w-full border border-gray-200 rounded-lg">
-          <thead style={{ backgroundColor: '#6CD3D1' }}>
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <table className="min-w-full">
+          <thead className="bg-brand-300">
             <tr>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-r">
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-b border-r border-brand-400/30">
                 Job ID
               </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-r">
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-b border-r border-brand-400/30">
                 Status
               </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-r">
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-b border-r border-brand-400/30">
                 User
               </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-r max-w-48">
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-b border-r border-brand-400/30 max-w-48">
                 Next Dataset
               </th>
-              <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-r">
+              <th className="px-3 py-2 text-center text-xs font-medium text-gray-700 uppercase tracking-wider border-b border-r border-brand-400/30">
                 Script
               </th>
-              <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-r">
+              <th className="px-3 py-2 text-center text-xs font-medium text-gray-700 uppercase tracking-wider border-b border-r border-brand-400/30">
                 Logs
               </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-r">
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-b border-r border-brand-400/30">
                 Duration
               </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-b border-brand-400/30">
                 Started
               </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {jobs.map((job) => (
-              <tr key={job.id} className="hover:bg-gray-50">
-                <td className="px-3 py-1.5 text-sm font-medium text-gray-900 border-r">
+              <tr key={job.id} className="hover:bg-brand-50 transition-colors">
+                <td className="px-3 py-1.5 text-sm font-medium text-gray-900 border-r border-gray-200">
                   {job.id}
                 </td>
-                <td className="px-3 py-1.5 text-sm border-r">
+                <td className="px-3 py-1.5 text-sm border-r border-gray-200">
                   <StatusBadge status={job.status} />
                 </td>
-                <td className="px-3 py-1.5 text-sm text-gray-900 border-r">
+                <td className="px-3 py-1.5 text-sm text-gray-900 border-r border-gray-200">
                   {job.user}
                 </td>
-                <td className="px-3 py-1.5 text-sm border-r max-w-48">
+                <td className="px-3 py-1.5 text-sm border-r border-gray-200 max-w-48">
                   {job.dataset ? (
-                    <div className="max-w-full">
-                      <Link 
-                        href={`/projects/${projectNumber}/datasets/${job.dataset.id}`}
-                        className="text-blue-600 hover:underline font-medium block truncate"
-                        title={job.dataset.name}
-                      >
-                        {job.dataset.name}
-                      </Link>
-                      <div className="text-gray-500 text-xs truncate" title={`ID: ${job.dataset.id}`}>
-                        ID: {job.dataset.id}
-                      </div>
-                    </div>
+                    <Link
+                      href={`/projects/${projectNumber}/datasets/${job.dataset.id}`}
+                      className="text-brand-600 hover:underline font-medium truncate block"
+                      title={`${job.dataset.name} (ID: ${job.dataset.id})`}
+                    >
+                      {job.dataset.name} <span className="text-gray-400 font-normal">#{job.dataset.id}</span>
+                    </Link>
                   ) : (
-                    <div>
-                      <span>null</span>
-                      <div className="text-gray-500 text-xs">ID: null</div>
-                    </div>
+                    <span className="text-gray-400">—</span>
                   )}
                 </td>
-                <td className="px-3 py-1.5 text-sm border-r text-center">
-                  <Link 
+                <td className="px-3 py-1.5 text-sm border-r border-gray-200 text-center">
+                  <Link
                     href={`/jobs/${job.id}/script`}
-                    className="inline-flex items-center px-3 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-full hover:bg-blue-200"
+                    className="inline-flex items-center px-3 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
                   >
                     Show Script
                   </Link>
                 </td>
-                <td className="px-3 py-1.5 text-sm border-r text-center">
-                  <Link 
+                <td className="px-3 py-1.5 text-sm border-r border-gray-200 text-center">
+                  <Link
                     href={`/jobs/${job.id}/logs`}
-                    className="inline-flex items-center px-3 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded-full hover:bg-gray-200"
+                    className="inline-flex items-center px-3 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
                   >
                     Show Logs
                   </Link>
                 </td>
-                <td className="px-3 py-1.5 text-sm text-gray-900 border-r">
+                <td className="px-3 py-1.5 text-sm text-gray-900 border-r border-gray-200">
                   {job.time ? formatDuration(job.time.start_time, job.time.end_time) : '-'}
                 </td>
                 <td className="px-3 py-1.5 text-sm text-gray-900">
@@ -363,18 +355,18 @@ export default function ProjectJobsPage() {
       <div className="mt-3 flex items-center justify-between gap-2">
         <div className="text-sm text-gray-600">Showing {startIndex} to {endIndex} of {total} entries</div>
         <div className="flex items-center gap-2">
-          <button 
-            disabled={page <= 1} 
-            onClick={() => goToPage(page - 1)} 
-            className="px-3 py-1 border rounded disabled:opacity-50 text-sm"
+          <button
+            disabled={page <= 1}
+            onClick={() => goToPage(page - 1)}
+            className="px-3 py-1.5 text-sm font-medium border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             Prev
           </button>
-          <span className="text-sm">Page {page} / {totalPages}</span>
-          <button 
-            disabled={page >= totalPages} 
-            onClick={() => goToPage(page + 1)} 
-            className="px-3 py-1 border rounded disabled:opacity-50 text-sm"
+          <span className="text-sm text-gray-700">Page {page} / {totalPages}</span>
+          <button
+            disabled={page >= totalPages}
+            onClick={() => goToPage(page + 1)}
+            className="px-3 py-1.5 text-sm font-medium border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             Next
           </button>

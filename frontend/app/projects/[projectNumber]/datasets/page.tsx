@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { projectApi } from '@/lib/api';
 import { usePagination, useSearch } from '@/lib/hooks';
-import DatasetTreeRcTree from '@/components/DatasetTreeRcTree';
+import DatasetTreeRcTree from './DatasetTreeRcTree';
 
 export default function ProjectDatasetsPage() {
   const params = useParams<{ projectNumber: string }>();
@@ -78,12 +78,12 @@ export default function ProjectDatasetsPage() {
 
   return (
     <div className="container mx-auto px-6 py-8">
-      <h1 className="text-2xl font-bold mb-6">Project {projectNumber} - DataSets</h1>
-      
-      {/* Action buttons row */}
-      <div className="flex gap-3 mb-4 items-center">
+      <h1 className="text-2xl font-bold mb-4">Project {projectNumber} - DataSets</h1>
+
+      {/* Unified toolbar */}
+      <div className="flex items-center gap-3 mb-4">
         {/* View toggle group */}
-        <div className="inline-flex rounded-lg bg-gray-100 p-1">
+        <div className="inline-flex rounded-md bg-gray-100 p-0.5">
           <button
             onClick={() => {
               const sp = new URLSearchParams(searchParams.toString());
@@ -91,7 +91,7 @@ export default function ProjectDatasetsPage() {
               router.push(`?${sp.toString()}`);
               setSelectedSet(new Set());
             }}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+            className={`px-3 py-1.5 text-sm font-medium rounded transition-all ${
               viewMode === 'table'
                 ? 'bg-white text-gray-900 shadow-sm'
                 : 'text-gray-600 hover:text-gray-900'
@@ -106,7 +106,7 @@ export default function ProjectDatasetsPage() {
               router.push(`?${sp.toString()}`);
               setSelectedSet(new Set());
             }}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+            className={`px-3 py-1.5 text-sm font-medium rounded transition-all ${
               viewMode === 'tree'
                 ? 'bg-white text-gray-900 shadow-sm'
                 : 'text-gray-600 hover:text-gray-900'
@@ -116,20 +116,61 @@ export default function ProjectDatasetsPage() {
           </button>
         </div>
 
-        <div className="w-px h-6 bg-gray-300"></div>
+        <div className="w-px h-6 bg-gray-300" />
 
-        <button 
-          className="px-2 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        {/* Search input - different for table vs tree */}
+        {viewMode === 'tree' ? (
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+              <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input
+              value={treeSearchQuery}
+              onChange={(e) => setTreeSearchQuery(e.target.value)}
+              placeholder="Search tree..."
+              className="w-48 pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-white"
+            />
+          </div>
+        ) : (
+          <>
+            <input
+              value={localQuery}
+              onChange={(e) => setLocalQuery(e.target.value)}
+              placeholder="Search name..."
+              className="w-48 border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+            />
+            <div className="flex items-center gap-1.5 text-sm text-gray-600">
+              <span>Show</span>
+              <select
+                value={per}
+                onChange={(e) => changePerPage(Number(e.target.value))}
+                className="border border-gray-300 rounded-md px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+          </>
+        )}
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Action buttons - right aligned */}
+        <button
+          className="px-3 py-1.5 bg-white text-red-600 border border-red-300 rounded-md text-sm font-medium hover:bg-red-50 hover:border-red-400 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-red-300 transition-colors"
           disabled={selectedSet.size === 0}
-          onClick={()=>deleteDatasets([...selectedSet])}
+          onClick={() => deleteDatasets(Array.from(selectedSet))}
         >
-          Delete selected ({selectedSet.size})
+          Delete ({selectedSet.size})
         </button>
-        <button 
-          className="px-2 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
-          onClick={() => {
-            downloadAllDatasets();
-          }}
+        <button
+          className="px-3 py-1.5 bg-brand-600 text-white rounded-md text-sm font-medium hover:bg-brand-700 transition-colors"
+          onClick={() => downloadAllDatasets()}
         >
           Download All
         </button>
@@ -137,33 +178,7 @@ export default function ProjectDatasetsPage() {
 
       {viewMode === 'tree' ? (
         <div>
-          <div className="mb-4">
-            <div className="relative max-w-md">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
-              <input
-                value={treeSearchQuery}
-                onChange={(e) => setTreeSearchQuery(e.target.value)}
-                placeholder="Search datasets..."
-                className="w-full pl-10 pr-10 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
-              />
-              {treeSearchQuery && (
-                <button
-                  onClick={() => setTreeSearchQuery('')}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
-            </div>
-          </div>
-
-          {isTreeLoading && <div className="p-6">Loading tree...</div>}
+          {isTreeLoading && <div className="p-6 text-gray-500">Loading tree...</div>}
           {treeError && <div className="p-6 text-red-600">Failed to load tree</div>}
           {treeData && (
             <DatasetTreeRcTree
@@ -177,41 +192,15 @@ export default function ProjectDatasetsPage() {
         </div>
       ) : (
         <>
-          {/* Search and pagination controls immediately before table */}
-          <form onSubmit={onSubmit} className="mb-3 flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-gray-600">Show</label>
-              <select
-                value={per}
-                onChange={(e) => changePerPage(Number(e.target.value))}
-                className="border rounded px-2 py-1 text-sm"
-              >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
-              <span className="text-sm text-gray-600">entries</span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <input
-                value={localQuery}
-                onChange={(e) => setLocalQuery(e.target.value)}
-                placeholder="Search name..."
-                className="border rounded px-3 py-1.5 text-sm"
-              />
-              <div className="text-xs text-gray-500">Search updates automatically</div>
-            </div>
-          </form>
-
-          <div className="overflow-x-auto">
-            <table className="min-w-full border">
-              <thead style={{ backgroundColor: '#6CD3D1' }}>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead className="bg-brand-300 text-gray-800">
                 <tr>
-                  <th className="px-4 py-2 border text-center w-12">
+                  <th className="px-3 py-2 text-center w-10 font-semibold">
                     <input
                       type="checkbox"
+                      className="rounded border-gray-400"
                       checked={allSelectedOnPage}
                       onChange={() => {
                         setSelectedSet(prev => {
@@ -226,51 +215,51 @@ export default function ProjectDatasetsPage() {
                       }}
                     />
                   </th>
-                  <th className="px-3 py-2 border text-left">ID</th>
-                  <th className="px-3 py-2 border text-left">Name</th>
-                  <th className="px-3 py-2 border text-left">SushiApp</th>
-                  <th className="px-3 py-2 border text-left">Samples</th>
-                  <th className="px-3 py-2 border text-left">ParentID</th>
-                  <th className="px-3 py-2 border text-left">Children</th>
-                  <th className="px-3 py-2 border text-left">Who</th>
-                  <th className="px-3 py-2 border text-left">Created</th>
-                  <th className="px-3 py-2 border text-left">BFabricID</th>
+                  <th className="px-3 py-2 text-left font-semibold">ID</th>
+                  <th className="px-3 py-2 text-left font-semibold">Name</th>
+                  <th className="px-3 py-2 text-left font-semibold">SushiApp</th>
+                  <th className="px-3 py-2 text-left font-semibold">Samples</th>
+                  <th className="px-3 py-2 text-left font-semibold">ParentID</th>
+                  <th className="px-3 py-2 text-left font-semibold">Children</th>
+                  <th className="px-3 py-2 text-left font-semibold">Who</th>
+                  <th className="px-3 py-2 text-left font-semibold">Created</th>
+                  <th className="px-3 py-2 text-left font-semibold">BFabricID</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-gray-100 text-sm">
                 {datasets.map((ds) => (
-                  <tr key={ds.id} className="odd:bg-white even:bg-gray-50">
-                    <td className="px-4 py-2 border text-center">
-                      <input type="checkbox" checked={selectedSet.has(ds.id)} onChange={() => toggleSelect(ds.id)} />
+                  <tr key={ds.id} className="odd:bg-white even:bg-gray-50/50 hover:bg-brand-50 transition-colors">
+                    <td className="px-3 py-2 text-center">
+                      <input type="checkbox" className="rounded border-gray-300" checked={selectedSet.has(ds.id)} onChange={() => toggleSelect(ds.id)} />
                     </td>
-                    <td className="px-3 py-2 border">{ds.id}</td>
-                    <td className="px-3 py-2 border">
-                      <a href={`/projects/${projectNumber}/datasets/${ds.id}`} className="text-blue-600 hover:underline text-sm">{ds.name}</a>
+                    <td className="px-3 py-2 text-gray-600">{ds.id}</td>
+                    <td className="px-3 py-2">
+                      <a href={`/projects/${projectNumber}/datasets/${ds.id}`} className="text-brand-700 hover:text-brand-900 hover:underline font-medium">{ds.name}</a>
                     </td>
-                    <td className="px-3 py-2 border text-sm">{ds.sushi_app_name || ''}</td>
-                    <td className="px-3 py-2 border">{ds.completed_samples ?? 0} / {ds.samples_count ?? 0}</td>
-                    <td className="px-3 py-2 border">
+                    <td className="px-3 py-2 text-gray-600">{ds.sushi_app_name || ''}</td>
+                    <td className="px-3 py-2 text-gray-600">{ds.completed_samples ?? 0} / {ds.samples_count ?? 0}</td>
+                    <td className="px-3 py-2">
                       {ds.parent_id ? (
-                        <a href={`/projects/${projectNumber}/datasets/${ds.parent_id}`} className="text-blue-600 hover:underline">{ds.parent_id}</a>
-                      ) : ''}
+                        <a href={`/projects/${projectNumber}/datasets/${ds.parent_id}`} className="text-brand-600 hover:text-brand-800 hover:underline">{ds.parent_id}</a>
+                      ) : <span className="text-gray-300">—</span>}
                     </td>
-                    <td className="px-3 py-2 border">
-                      {(ds.children_ids || []).map((cid, idx) => (
+                    <td className="px-3 py-2">
+                      {(ds.children_ids || []).length > 0 ? (ds.children_ids || []).map((cid, idx) => (
                         <span key={cid}>
-                          <a href={`/projects/${projectNumber}/datasets/${cid}`} className="text-blue-600 hover:underline">{cid}</a>
+                          <a href={`/projects/${projectNumber}/datasets/${cid}`} className="text-brand-600 hover:text-brand-800 hover:underline">{cid}</a>
                           {idx < (ds.children_ids || []).length - 1 ? ', ' : ''}
                         </span>
-                      ))}
+                      )) : <span className="text-gray-300">—</span>}
                     </td>
-                    <td className="px-3 py-2 border">{ds.user_login || ''}</td>
-                    <td className="px-3 py-2 border">{new Date(ds.created_at).toLocaleString()}</td>
-                    <td className="px-3 py-2 border">
+                    <td className="px-3 py-2 text-gray-600">{ds.user_login || ''}</td>
+                    <td className="px-3 py-2 text-gray-500">{new Date(ds.created_at).toLocaleString()}</td>
+                    <td className="px-3 py-2">
                       {ds.bfabric_id ? (
                         <a
                           href={`https://fgcz-bfabric.uzh.ch/bfabric/dataset/show.html?id=${ds.bfabric_id}&tab=details`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline"
+                          className="text-brand-600 hover:text-brand-800 hover:underline"
                         >
                           {ds.bfabric_id}
                         </a>
@@ -280,14 +269,15 @@ export default function ProjectDatasetsPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
 
-          <div className="mt-3 flex items-center justify-between gap-2">
-            <div className="text-sm text-gray-600">Showing {startIndex} to {endIndex} of {total} entries</div>
-            <div className="flex items-center gap-2">
-              <button disabled={page <= 1} onClick={() => goToPage(page - 1)} className="px-3 py-1 border rounded disabled:opacity-50 text-sm">Prev</button>
-              <span className="text-sm">Page {page} / {totalPages}</span>
-              <button disabled={page >= totalPages} onClick={() => goToPage(page + 1)} className="px-3 py-1 border rounded disabled:opacity-50 text-sm">Next</button>
+          <div className="mt-4 flex items-center justify-between gap-2">
+            <div className="text-sm text-gray-500">Showing {startIndex} to {endIndex} of {total} entries</div>
+            <div className="flex items-center gap-1">
+              <button disabled={page <= 1} onClick={() => goToPage(page - 1)} className="px-3 py-1.5 bg-white border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors">Prev</button>
+              <span className="text-sm text-gray-600 px-3">Page {page} / {totalPages}</span>
+              <button disabled={page >= totalPages} onClick={() => goToPage(page + 1)} className="px-3 py-1.5 bg-white border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors">Next</button>
             </div>
           </div>
         </>

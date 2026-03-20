@@ -3,6 +3,9 @@ import { defineConfig } from 'vitest/config'
 import { resolve } from 'path'
 
 export default defineConfig({
+  esbuild: {
+    jsx: 'automatic',
+  },
   test: {
     // Test environment
     environment: 'happy-dom',
@@ -39,9 +42,11 @@ export default defineConfig({
         'out/',
         '**/*.d.ts',
         '**/*.config.{js,ts}',
-        'test/',
         'mocks/',
-        'docs/'
+        'docs/',
+        'app/docs/',
+        'config/',
+        'public/'
       ],
       thresholds: {
         global: {
@@ -55,9 +60,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': resolve(__dirname, './'),
-      '@/components': resolve(__dirname, './components'),
-      '@/app': resolve(__dirname, './app')
+      '@': resolve(__dirname, './')
     }
   }
 })

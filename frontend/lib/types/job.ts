@@ -24,17 +24,15 @@ export interface JobMinimal {
   id: number;
   status: string;
   user: string;
-  input_dataset_id: number;
-  next_dataset_id: number;
-  created_at: string;
-  dataset?: {
+  dataset: {
     id: number;
     name: string;
-  };
-  time?: {
+  } | null;
+  time: {
     start_time: string;
-    end_time: string;
+    end_time?: string;
   };
+  created_at: string;
 }
 
 export interface JobSubmissionRequest {
