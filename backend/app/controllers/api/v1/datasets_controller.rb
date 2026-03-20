@@ -17,7 +17,7 @@ module Api
               id: dataset.id,
               name: dataset.name,
               created_at: dataset.created_at,
-              user: (current_user&.login || 'anonymous')
+              user_login: (current_user&.login || 'anonymous')
             }
           end,
           total_count: datasets.count,
@@ -37,7 +37,7 @@ module Api
           id: dataset.id,
           name: dataset.name,
           created_at: dataset.created_at,
-          user: (current_user&.login || 'anonymous'),
+          user_login: (current_user&.login || 'anonymous'),
           project_number: dataset.project&.number,
           samples_count: dataset.samples_length,
           completed_samples: dataset.completed_samples,

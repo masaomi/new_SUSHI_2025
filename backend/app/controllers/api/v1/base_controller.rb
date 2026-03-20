@@ -1,11 +1,13 @@
 module Api
   module V1
     class BaseController < ApplicationController
+      include ProjectAuthorizable
+
       # Base controller for API
       # JWT authentication required (except APIs excluded by skip_jwt_authentication?)
       # Skip CSRF protection for API endpoints
       skip_before_action :verify_authenticity_token
-      
+
       before_action :ensure_jwt_authentication
       
       private

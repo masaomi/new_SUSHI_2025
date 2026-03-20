@@ -142,7 +142,7 @@ module Api
           name: dataset.name,
           sushi_app_name: dataset.sushi_app_name,
           completed_samples: dataset.completed_samples,
-          samples_length: dataset.samples_length,
+          samples_count: dataset.samples_length,
           parent_id: dataset.parent_id,
           children_ids: dataset.data_sets.pluck(:id),
           user_login: dataset.user&.login,

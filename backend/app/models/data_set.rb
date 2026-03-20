@@ -268,7 +268,7 @@ class DataSet < ActiveRecord::Base
         sample_hash[header] = row[i]
       end
       sample = Sample.new
-      sample.key_value = sample_hash.to_s
+      sample.key_value = sample_hash.to_json
       sample.save
       data_set.samples << sample
     end

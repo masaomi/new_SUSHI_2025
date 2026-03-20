@@ -1,7 +1,6 @@
 module Api
   module V1
-    class ApplicationConfigsController < ApplicationController
-      # JWT authentication is handled by ApplicationController via JwtAuthenticatable concern
+    class ApplicationConfigsController < BaseController
 
       # GET /api/v1/application-configs
       # List all available applications

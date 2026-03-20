@@ -51,19 +51,19 @@ module SushiConfigHelper
       end
     end
     
-    # Get scratch directory path
+    # Get scratch directory path (ENV takes precedence over sushi.yml)
     def scratch_dir
-      storage_config['scratch_dir'] || '/scratch'
+      ENV.fetch('SCRATCH_DIR', storage_config['scratch_dir'] || '/scratch')
     end
-    
-    # Get gstore directory path
+
+    # Get gstore directory path (ENV takes precedence over sushi.yml)
     def gstore_dir
-      storage_config['gstore_dir'] || '/srv/gstore/projects'
+      ENV.fetch('GSTORE_DIR', storage_config['gstore_dir'] || '/srv/gstore/projects')
     end
-    
-    # Get copy method (g-req or rsync)
+
+    # Get copy method (ENV takes precedence over sushi.yml)
     def copy_method
-      storage_config['copy_method'] || 'g-req'
+      ENV.fetch('SUSHI_COPY_METHOD', storage_config['copy_method'] || 'g-req')
     end
     
     # Generate copy command based on environment
