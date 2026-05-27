@@ -1,0 +1,465 @@
+# =============================================================================
+# New SUSHI API — Contract DRAFT (2026-05-27)
+# =============================================================================
+# Status: DRAFT for the afternoon review meeting. To be cross-checked against
+#         legacy SUSHI code and multi-LLM reviewed later.
+# Scope:  P0 Authentication gateway + P1 register/read-only datasets.
+#         Job submission (P2) intentionally omitted for now.
+# Intent: This is the single source of truth that BOTH the Rails v8 API and the
+#         FastAPI server must conform to. Field names are snake_case; frontends
+#         adapt to camelCase. Both implementations are exercised by the shared
+#         contract tests (see docs/contract_testing_procedure_draft_20260527.md).
+#
+# NOTE on the existing swagger/v1/swagger.yaml:
+#   That file is the rswag-generated spec from the current Rails app. This draft
+#   is broader and forward-looking; once agreed it should be reconciled with /
+#   promoted into swagger.yaml as the authoritative contract.
+# =============================================================================
+openapi: 3.0.3
+info:
+  title: New SUSHI API
+  version: 0.1.0-draft
+  description: |
+    Secure common access point for SUSHI dataset registration and reading.
+    Replaces ad-hoc direct DB access and plaintext-password scripts/Skills.
+servers:
+  - url: /api/v1
+    description: Versioned API base path
+
+# -----------------------------------------------------------------------------
+# Security
+# -----------------------------------------------------------------------------
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Short-lived access token issued by POST /auth/login.
+    refreshCookie:
+      type: apiKey
+      in: cookie
+      name: refresh_token
+      description: HttpOnly, Secure, SameSite=Strict refresh token cookie.
+    patAuth:
+      type: http
+      scheme: bearer
+      description: |
+        PROPOSED (not yet ratified). Personal Access Token, e.g.
+        "Authorization: Bearer sushi_pat_xxxx". Long-lived, user-issued,
+        scoped, revocable. Same header as bearerAuth; the server distinguishes
+        a PAT by its "sushi_pat_" prefix (DB lookup) from a short-lived JWT.
+
+  # ---------------------------------------------------------------------------
+  # Schemas
+  # ---------------------------------------------------------------------------
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          description: Machine-stable error code, e.g. "not_found", "forbidden".
+        message:
+          type: string
+          description: Human-readable detail (may be localized).
+      example: { error: "not_found", message: "Dataset 9999 does not exist" }
+
+    LoginOptions:
+      type: object
+      required: [ldap_auth, authentication_skipped]
+      properties:
+        ldap_auth:
+          type: boolean
+          description: Whether LDAP authentication is active.
+        authentication_skipped:
+          type: boolean
+          description: When true, auth is bypassed (dev/local only).
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username: { type: string, example: "masaomi" }
+        password: { type: string, format: password }
+
+    User:
+      type: object
+      required: [user_id, login, projects]
+      properties:
+        user_id: { type: integer, example: 42 }
+        login: { type: string, example: "masaomi" }
+        projects:
+          type: array
+          items: { type: integer }
+          description: Project numbers the user may access.
+          example: [1001, 1535]
+
+    TokenResponse:
+      type: object
+      required: [access_token, token_type, user]
+      properties:
+        access_token: { type: string, description: JWT access token (body). }
+        token_type: { type: string, enum: [bearer], example: bearer }
+        user: { $ref: '#/components/schemas/User' }
+      # Refresh token is NOT in the body; it is set as an HttpOnly cookie.
+
+    # --- PROPOSED (not yet ratified): Personal Access Tokens -----------------
+    ApiToken:
+      type: object
+      description: Metadata for an issued PAT (the secret itself is never returned after creation).
+      required: [id, name, scopes, created_at]
+      properties:
+        id: { type: integer }
+        name: { type: string, example: "devday-register-bot" }
+        scopes:
+          type: array
+          items: { type: string, enum: [read, register] }
+          example: [read, register]
+        project_numbers:
+          type: array
+          items: { type: integer }
+          nullable: true
+          description: If set, the token is restricted to these projects.
+          example: [1001]
+        expires_at: { type: string, format: date-time, nullable: true }
+        last_used_at: { type: string, format: date-time, nullable: true }
+        revoked: { type: boolean }
+        created_at: { type: string, format: date-time }
+
+    CreateTokenRequest:
+      type: object
+      required: [name, scopes]
+      properties:
+        name: { type: string, example: "devday-register-bot" }
+        scopes:
+          type: array
+          items: { type: string, enum: [read, register] }
+        project_numbers:
+          type: array
+          items: { type: integer }
+          nullable: true
+        expires_in_days:
+          type: integer
+          default: 90
+          description: Days until expiry; subject to a server-side maximum.
+
+    CreateTokenResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiToken'
+        - type: object
+          required: [token]
+          properties:
+            token:
+              type: string
+              description: |
+                The plaintext PAT. Shown ONCE at creation; never retrievable
+                again. Prefixed with "sushi_pat_".
+              example: "sushi_pat_3f9a...c0"
+
+    Sample:
+      type: object
+      description: |
+        One row of a dataset. `key_value` mirrors the legacy SUSHI
+        samples.key_value semantics. IMPORTANT: insertion order of keys is
+        significant — the SUSHI UI renders columns in reverse JSON-insertion
+        order, so "Name" must be the FIRST key to appear as the leftmost column.
+      additionalProperties: true
+      example:
+        Name: "sampleA"
+        "Read1 [File]": "p1001/.../sampleA_R1.fastq.gz"
+        "Species": "Homo sapiens"
+
+    DataSet:
+      type: object
+      required: [id, name, project_number, num_samples]
+      properties:
+        id: { type: integer, example: 9 }
+        name: { type: string, example: "FastQC_result" }
+        comment: { type: string, nullable: true }
+        project_number:
+          type: integer
+          description: B-Fabric / SUSHI project number.
+          example: 1001
+        parent_id:
+          type: integer
+          nullable: true
+          description: Parent dataset id (SUSHI tree linkage). null at root.
+        bfabric_id: { type: integer, nullable: true }
+        workunit_id: { type: integer, nullable: true }
+        sushi_app_name:
+          type: string
+          nullable: true
+          description: App that produced this dataset; null if imported.
+        num_samples: { type: integer, example: 12 }
+        completed_samples: { type: integer, example: 12 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    DataSetDetail:
+      allOf:
+        - $ref: '#/components/schemas/DataSet'
+        - type: object
+          properties:
+            samples:
+              type: array
+              items: { $ref: '#/components/schemas/Sample' }
+            columns:
+              type: array
+              description: Ordered column definitions (insertion order preserved).
+              items:
+                type: object
+                properties:
+                  name: { type: string }
+                  tag: { type: string, nullable: true, example: "[File]" }
+
+    DataSetList:
+      type: object
+      required: [datasets, total_count]
+      properties:
+        datasets:
+          type: array
+          items: { $ref: '#/components/schemas/DataSet' }
+        total_count: { type: integer }
+        pagination:
+          type: object
+          properties:
+            page: { type: integer }
+            per: { type: integer }
+
+    RegisterDatasetRequest:
+      type: object
+      required: [project_number, name, samples]
+      properties:
+        project_number: { type: integer, example: 1001 }
+        name: { type: string, example: "Custom_analysis_2026" }
+        comment: { type: string, nullable: true }
+        parent_dataset_id:
+          type: integer
+          nullable: true
+          description: |
+            SUSHI tree parent linkage. Supported from day one (do not defer).
+            If `register_bfabric` is true this also maps to the B-Fabric parent.
+        register_bfabric:
+          type: boolean
+          default: true
+          description: Also create the B-Fabric workunit + resources.
+        also_register_sushi:
+          type: boolean
+          default: true
+          description: Insert into SUSHI data_sets + samples.
+        samples:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/Sample' }
+          description: |
+            Sample rows. Key insertion order is significant (Name first).
+            The server serializes these to the legacy samples.key_value format.
+
+# -----------------------------------------------------------------------------
+# Paths
+# -----------------------------------------------------------------------------
+paths:
+  # ===================== P0: Authentication gateway ==========================
+  /auth/login_options:
+    get:
+      tags: [Auth]
+      summary: Available authentication methods
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginOptions' }
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Authenticate (LDAP) and issue tokens
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: |
+            Access token in body; refresh token set as HttpOnly cookie
+            (Set-Cookie: refresh_token=...; HttpOnly; Secure; SameSite=Strict).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenResponse' }
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh the access token using the refresh cookie
+      security: [{ refreshCookie: [] }]
+      responses:
+        '200':
+          description: New access token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenResponse' }
+        '401': { description: Missing/invalid/expired refresh token }
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke the current refresh token and clear the cookie
+      security: [{ refreshCookie: [] }]
+      responses:
+        '200': { description: Logged out }
+
+  /auth/logout-all:
+    post:
+      tags: [Auth]
+      summary: Revoke all refresh tokens for the current user
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Logged out from all sessions }
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Current authenticated user
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '401': { description: Unauthenticated }
+
+  # ----- PROPOSED (not yet ratified): Personal Access Token management -------
+  /auth/tokens:
+    get:
+      tags: [Auth]
+      summary: List the current user's PATs (metadata only)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ApiToken' }
+    post:
+      tags: [Auth]
+      summary: Issue a new PAT (plaintext returned once)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateTokenRequest' }
+      responses:
+        '201':
+          description: Created; plaintext token returned once.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CreateTokenResponse' }
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /auth/tokens/{id}:
+    delete:
+      tags: [Auth]
+      summary: Revoke a PAT
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: integer } }
+      responses:
+        '204': { description: Revoked }
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  # ===================== P1: Register + read-only datasets ===================
+  /datasets:
+    get:
+      tags: [Datasets]
+      summary: List datasets accessible to the current user
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: query, name: project_number, schema: { type: integer } }
+        - { in: query, name: page, schema: { type: integer, default: 1 } }
+        - { in: query, name: per, schema: { type: integer, default: 20 } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataSetList' }
+        '401': { description: Unauthenticated }
+    post:
+      tags: [Datasets]
+      summary: Register a new dataset (B-Fabric workunit + SUSHI data_sets/samples)
+      description: |
+        The secure replacement for direct-DB / sushi_fabric SSH registration.
+        Preserves legacy samples.key_value Ruby serialization and column order.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterDatasetRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataSet' }
+        '403':
+          description: No access to the target project
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422':
+          description: Validation error (missing fields, bad samples)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /datasets/{id}:
+    get:
+      tags: [Datasets]
+      summary: Dataset detail (with samples and columns)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataSetDetail' }
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+# Applied as the default; endpoints override with `security: []` where public.
+security:
+  - bearerAuth: []
