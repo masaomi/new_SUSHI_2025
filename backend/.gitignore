@@ -21,3 +21,7 @@ vendor/
 Thumbs.db 
 # Ignore master key for decrypting credentials and more.
 /config/master.key
+
+# Disposable rswag output (B1, contract-first): swagger/v1/swagger.yaml is the
+# hand-authored authoritative contract; swaggerize writes only this throwaway file.
+/swagger/v1/_generated_from_specs.yaml
