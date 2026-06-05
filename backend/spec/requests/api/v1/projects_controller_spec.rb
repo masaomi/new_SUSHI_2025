@@ -164,7 +164,7 @@ RSpec.describe 'Api::V1::Projects', type: :request do
         get '/api/v1/projects/1001/datasets'
         body = JSON.parse(response.body)
         ds = body['datasets'].find { |d| d['name'] == 'Dataset 1' }
-        expect(ds.keys).to include('id', 'name', 'sushi_app_name', 'completed_samples', 'samples_length', 'parent_id', 'children_ids', 'user_login', 'created_at', 'bfabric_id', 'project_number')
+        expect(ds.keys).to include('id', 'name', 'sushi_app_name', 'completed_samples', 'samples_count', 'parent_id', 'children_ids', 'user_login', 'created_at', 'bfabric_id', 'project_number')
         expect(ds['user_login']).to eq(user.login)
         expect(ds['project_number']).to eq(1001)
       end
