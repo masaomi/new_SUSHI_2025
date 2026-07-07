@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_06_20_133423) do
+ActiveRecord::Schema[8.0].define(version: 2026_06_05_160702) do
   create_table "data_sets", force: :cascade do |t|
     t.integer "project_id"
     t.integer "parent_id"
@@ -57,6 +57,17 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_20_133423) do
     t.datetime "created_at", precision: nil, null: false
     t.datetime "updated_at", precision: nil, null: false
     t.text "data_set_tree", limit: 16777215
+  end
+
+  create_table "refresh_tokens", force: :cascade do |t|
+    t.string "token_hash", null: false
+    t.integer "user_id", null: false
+    t.datetime "expires_at", null: false
+    t.boolean "revoked", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["token_hash"], name: "index_refresh_tokens_on_token_hash", unique: true
+    t.index ["user_id"], name: "index_refresh_tokens_on_user_id"
   end
 
   create_table "samples", force: :cascade do |t|
@@ -114,5 +125,6 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_20_133423) do
     t.index ["user_id"], name: "index_wallet_connections_on_user_id"
   end
 
+  add_foreign_key "refresh_tokens", "users"
   add_foreign_key "wallet_connections", "users"
 end

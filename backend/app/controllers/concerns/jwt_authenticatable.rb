@@ -28,19 +28,14 @@ module JwtAuthenticatable
   def extract_token_from_header
     auth_header = request.headers['Authorization']
     return nil unless auth_header
-    
+
     # Expect Bearer token format
     token = auth_header.split(' ').last
     token if token.present?
   end
 
-  def decode_jwt_token(token)
-    decoded = JWT.decode(token, JWT_SECRET_KEY, true, { algorithm: JWT_ALGORITHM })
-    decoded[0]
-  rescue JWT::DecodeError => e
-    Rails.logger.error "JWT decode error: #{e.message}"
-    nil
-  end
+  # decode_jwt_token is defined once in config/initializers/jwt.rb (single source,
+  # with access-token type validation). No per-controller override here.
 
   def render_unauthorized
     render json: { error: 'Unauthorized - JWT token required' }, status: :unauthorized
@@ -48,8 +43,13 @@ module JwtAuthenticatable
 
   # List of APIs that don't require user identification
   def skip_jwt_authentication?
-    # Authentication-related APIs (login, register, etc.)
-    return true if controller_name == 'auth' && ['login', 'register'].include?(action_name)
+    # Authentication-related APIs that don't use a bearer access token:
+    #  - login/register: public (credentials in body)
+    #  - login_options: public (advertises available auth methods)
+    #  - refresh/logout: authenticated by the HttpOnly refresh_token cookie, not a bearer token
+    # (me + logout-all keep bearer authentication.)
+    return true if controller_name == 'auth' &&
+                   %w[login register login_options refresh logout].include?(action_name)
     
     # Get authentication options
     return true if controller_name == 'authentication' && action_name == 'login_options'

@@ -56,7 +56,9 @@ class User < ActiveRecord::Base
 #  attr_accessible :login, :password, :password_confirmation, :remember_me, :selected_project
   # attr_accessible :title, :body
   has_many :data_sets
-  
+  # Refresh tokens for the JWT auth gateway (B2). Additive table; safe in legacy mode.
+  has_many :refresh_tokens, dependent: :delete_all
+
   # Skip additional associations and features in legacy database mode
   unless AuthenticationHelper.legacy_database?
     # OAuth2 associations

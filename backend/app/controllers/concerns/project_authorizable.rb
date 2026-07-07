@@ -28,21 +28,36 @@ module ProjectAuthorizable
   end
 
   def current_user_project_numbers
-    @current_user_project_numbers ||= resolve_current_user_projects
+    @current_user_project_numbers ||= resolve_projects_for(current_user)
   end
 
-  def resolve_current_user_projects
-    if defined?(FGCZ) && FGCZ.respond_to?(:get_user_projects2) && current_user
+  # Project numbers (as strings) the given user may access. Used by AuthController
+  # to build the contract User payload, sharing one resolver with authorize_project!.
+  def current_user_project_numbers_for(user)
+    resolve_projects_for(user)
+  end
+
+  def resolve_projects_for(user)
+    if defined?(FGCZ) && FGCZ.respond_to?(:get_user_projects2) && user
       begin
-        FGCZ.get_user_projects2(current_user.login).map { |p| p.gsub(/p/, '').to_s }
+        FGCZ.get_user_projects2(user.login).map { |p| p.gsub(/p/, '').to_s }
       rescue => e
         Rails.logger.error("ProjectAuthorizable LDAP lookup failed: #{e.message}")
-        fallback_all_projects
+        projects_when_resolution_unavailable
       end
     else
-      if Rails.env.production?
-        Rails.logger.warn("ProjectAuthorizable: LDAP unavailable in production — granting all projects")
-      end
+      projects_when_resolution_unavailable
+    end
+  end
+
+  # Fail-closed in production: when FGCZ project resolution is unavailable we deny
+  # everything rather than granting all projects. The permissive fallback is kept
+  # only for non-production dev convenience and when authentication is skipped.
+  def projects_when_resolution_unavailable
+    if Rails.env.production? && !AuthenticationHelper.authentication_skipped?
+      Rails.logger.error("ProjectAuthorizable: project resolution unavailable in production — denying all projects (fail-closed)")
+      []
+    else
       fallback_all_projects
     end
   end

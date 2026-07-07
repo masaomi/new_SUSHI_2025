@@ -33,11 +33,16 @@ Rails.application.routes.draw do
       # Public API routes (no JWT authentication required)
       get 'hello', to: 'hello#index'
       
-      # JWT Authentication routes (public - no authentication required)
-      post 'auth/login', to: 'auth#login'
-      post 'auth/register', to: 'auth#register'
-      post 'auth/logout', to: 'auth#logout'
-      get 'auth/verify', to: 'auth#verify'
+      # JWT Authentication gateway (B2). Public/cookie endpoints self-skip bearer auth
+      # via JwtAuthenticatable#skip_jwt_authentication?; me/logout-all require a bearer token.
+      get  'auth/login_options', to: 'auth#login_options' # public
+      post 'auth/login', to: 'auth#login'                 # public
+      post 'auth/register', to: 'auth#register'           # public
+      post 'auth/refresh', to: 'auth#refresh'             # refresh cookie
+      post 'auth/logout', to: 'auth#logout'               # refresh cookie
+      post 'auth/logout-all', to: 'auth#logout_all'       # bearer
+      get  'auth/me', to: 'auth#me'                        # bearer
+      get  'auth/verify', to: 'auth#verify'               # DEPRECATED (use auth/me)
       
       # Private API routes (JWT authentication required)
       # These endpoints require a valid JWT token in the Authorization header

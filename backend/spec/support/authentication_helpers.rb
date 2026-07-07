@@ -4,7 +4,8 @@ module AuthenticationHelpers
       user_id: user.id,
       login: user.login,
       email: user.email,
-      exp: 24.hours.from_now.to_i,
+      type: 'access',
+      exp: 30.minutes.from_now.to_i,
       iat: Time.current.to_i
     }
 
