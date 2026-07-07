@@ -1,6 +1,7 @@
 Renewal_SUSHI_plan_2025/
 .kairos/
 .mcp.json
+legacy_sushi/
 
 # Backend (Rails)
 backend/log/*
@@ -42,3 +43,19 @@ old_sushi/
 # cursor_log
 cursor_log/
 log/
+
+# --- Local consolidation clones (separate git repos; never commit into this repo) ---
+New_SUSHI_2025/
+New_SUSHI_2025_masa/
+Renewal_SUSHI_plan_2025_github/
+Renewal_SUSHI_plan_2025_gitlab/
+multi_omics_studio/
+
+# --- Local agent / tooling config (not intended for the shared fgcz repo) ---
+.claude/
+CLAUDE.md
+
+# --- Local backups, logs, scratch ---
+*.bundle
+command.log
+test.txt
