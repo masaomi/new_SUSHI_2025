@@ -373,6 +373,55 @@ RSpec.describe DataSet, type: :model do
         dataset = DataSet.find(dataset_id)
         expect(dataset.sushi_app_name).to eq('FastqcApp')
       end
+
+      it 'writes key_value as JSON by default' do
+        dataset_id = DataSet.save_dataset_to_database(
+          data_set_arr: ['DataSetName', 'Test', 'ProjectNumber', '1001'],
+          headers: ['Name', 'Value'],
+          rows: [['Test1', '100']],
+          user: user
+        )
+        sample = DataSet.find(dataset_id).samples.first
+        expect(sample.key_value).to eq({ 'Name' => 'Test1', 'Value' => '100' }.to_json)
+        expect(JSON.parse(sample.key_value)).to eq('Name' => 'Test1', 'Value' => '100')
+      end
+
+      it 'writes key_value in legacy Ruby hash-rocket format when key_value_format: :ruby' do
+        dataset_id = DataSet.save_dataset_to_database(
+          data_set_arr: ['DataSetName', 'Test', 'ProjectNumber', '1001'],
+          headers: ['Name', 'Read1 [File]'],
+          rows: [['S1', 'p1001/f.gz']],
+          user: user,
+          key_value_format: :ruby
+        )
+        sample = DataSet.find(dataset_id).samples.first
+        expect(sample.key_value).to eq('{"Name"=>"S1", "Read1 [File]"=>"p1001/f.gz"}')
+        # header order preserved and readable back through the reader
+        expect(sample.to_hash).to eq('Name' => 'S1', 'Read1 [File]' => 'p1001/f.gz')
+        expect(sample.to_hash.keys).to eq(['Name', 'Read1 [File]'])
+      end
+
+      it 'inherits the project from the parent dataset (legacy tree nesting)' do
+        parent = create(:data_set, user: user)
+        data_set_arr = ['DataSetName', 'Child', 'ProjectNumber', '1001', 'ParentID', parent.id.to_s]
+        dataset_id = DataSet.save_dataset_to_database(
+          data_set_arr: data_set_arr,
+          headers: ['Name'],
+          rows: [['x']],
+          user: user
+        )
+        expect(DataSet.find(dataset_id).project_id).to eq(parent.project_id)
+      end
+
+      it 'sets num_samples to the row count' do
+        dataset_id = DataSet.save_dataset_to_database(
+          data_set_arr: ['DataSetName', 'Test', 'ProjectNumber', '1001'],
+          headers: ['Name'],
+          rows: [['a'], ['b'], ['c']],
+          user: user
+        )
+        expect(DataSet.find(dataset_id).num_samples).to eq(3)
+      end
     end
   end
 

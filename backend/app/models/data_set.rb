@@ -229,7 +229,7 @@ class DataSet < ActiveRecord::Base
     paths.map{|path| path.split('/')[0,2].join('/')}
   end
 
-  def self.save_dataset_to_database(data_set_arr:, headers:, rows:, user: nil, child: nil, sushi_app_name: nil)
+  def self.save_dataset_to_database(data_set_arr:, headers:, rows:, user: nil, child: nil, sushi_app_name: nil, key_value_format: :json)
     data_set_hash = Hash[*data_set_arr]
     
     # Find or create project
@@ -250,7 +250,12 @@ class DataSet < ActiveRecord::Base
     # Set parent dataset if exists
     if parent_id = data_set_hash['ParentID']
       parent_data_set = DataSet.find_by_id(parent_id.to_i)
-      data_set.data_set = parent_data_set if parent_data_set
+      if parent_data_set
+        data_set.data_set = parent_data_set
+        # Legacy tree-nesting rule: a child dataset shares its parent's project so
+        # make_whole_tree nests it under the same project (mirrors legacy SUSHI).
+        data_set.project = parent_data_set.project if parent_data_set.project
+      end
     end
 
     # Set comment if exists
@@ -268,10 +273,18 @@ class DataSet < ActiveRecord::Base
         sample_hash[header] = row[i]
       end
       sample = Sample.new
-      sample.key_value = sample_hash.to_json
+      sample.key_value = if key_value_format == :ruby
+                           # Legacy Ruby Hash#inspect format (btools/legacy SUSHI eval() it back).
+                           Sample.serialize_key_value_ruby(sample_hash)
+                         else
+                           sample_hash.to_json
+                         end
       sample.save
       data_set.samples << sample
     end
+
+    # Record sample count up front (legacy parity; otherwise nil until samples_length).
+    data_set.num_samples = rows.length
 
     # Skip validation to avoid issues with user password validation
     data_set.save(validate: false)

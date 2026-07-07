@@ -13,6 +13,28 @@ class Sample < ActiveRecord::Base
     end
   end
 
+  # Serialize a Hash into the legacy Ruby Hash#inspect key_value format that
+  # legacy SUSHI / btools read back with eval(). Matches Ronald's FastAPI
+  # serialize_sample_data_ruby byte-for-byte:
+  #   {"k"=>"v", ...}  — double-quoted keys/values, no spaces around =>,
+  #   ", " between pairs, nil bareword for nil, escape backslash then quote.
+  # Built explicitly on purpose: Ruby's own Hash#inspect adds spaces around
+  # => on Ruby 3.4+, which would diverge from the stored legacy format.
+  def self.serialize_key_value_ruby(hash)
+    pairs = hash.map do |k, v|
+      key_s = %Q{"#{escape_ruby(k.to_s)}"}
+      val_s = v.nil? ? "nil" : %Q{"#{escape_ruby(v.to_s)}"}
+      "#{key_s}=>#{val_s}"
+    end
+    "{" + pairs.join(", ") + "}"
+  end
+
+  # Escape a string for a Ruby double-quoted literal: backslash first, then quote.
+  def self.escape_ruby(str)
+    str.gsub("\\") { "\\\\" }.gsub('"') { "\\\"" }
+  end
+  private_class_method :escape_ruby
+
   private
 
   def parse_key_value(str)
