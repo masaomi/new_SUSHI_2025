@@ -8,6 +8,9 @@ RSpec.describe 'Api::V1::Auth', type: :request do
   let!(:project2) { create(:project, number: 1002) }
 
   before { mock_authentication_skipped(false) }
+  # FGCZ (LDAP project resolver) is now loaded app-wide; stub it so project
+  # resolution is deterministic in the test env instead of hitting real LDAP.
+  before { allow(FGCZ).to receive(:get_user_projects2).and_return(%w[p1001 p1002]) }
 
   def body
     JSON.parse(response.body)

@@ -28,6 +28,16 @@ Rails.application.routes.draw do
   # Defines the root path route ("/")
   root "home#index"
 
+  # Machine-callable, bearer-only registration API (ApiToken). Top-level /v1 so
+  # btools reaches New SUSHI by base-URL swap (mirrors legacy production SUSHI).
+  # Bearer-only ActionController::Base — not under the JWT /api/v1 surface.
+  namespace :v1 do
+    post   'datasets/validate',      to: 'datasets#validate'
+    post   'datasets/register',      to: 'datasets#register'
+    put    'datasets/:id/bfabric-id', to: 'datasets#set_bfabric_id'
+    delete 'datasets/:id',           to: 'datasets#destroy'
+  end
+
   namespace :api do
     namespace :v1 do
       # Public API routes (no JWT authentication required)

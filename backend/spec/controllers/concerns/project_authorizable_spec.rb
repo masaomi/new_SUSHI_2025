@@ -1,8 +1,9 @@
 require 'rails_helper'
 
 RSpec.describe ProjectAuthorizable do
-  # Minimal host that includes the concern (FGCZ is undefined in the test env, so
-  # resolution falls through to projects_when_resolution_unavailable).
+  # Minimal host that includes the concern. FGCZ is now loaded app-wide, so we
+  # stub the resolver to be unavailable (raises) to exercise the subject of these
+  # tests: projects_when_resolution_unavailable (prod fail-closed vs dev fallback).
   let(:host_class) do
     Class.new do
       include ProjectAuthorizable
@@ -18,6 +19,7 @@ RSpec.describe ProjectAuthorizable do
   before do
     create(:project, number: 1001)
     create(:project, number: 1002)
+    allow(FGCZ).to receive(:get_user_projects2).and_raise(StandardError, 'resolver down')
   end
 
   context 'in production when project resolution is unavailable' do

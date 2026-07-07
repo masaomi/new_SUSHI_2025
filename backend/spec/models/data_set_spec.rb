@@ -34,14 +34,13 @@ RSpec.describe DataSet, type: :model do
       expect(data_set.errors[:project]).to include('must exist')
     end
 
-    it 'is not valid without a user' do
+    it 'is valid without a user (owner is optional; unowned datasets use the UI fallback)' do
       project = create(:project)
       data_set = DataSet.new(
         name: 'Test Dataset',
         project: project
       )
-      expect(data_set).not_to be_valid
-      expect(data_set.errors[:user]).to include('must exist')
+      expect(data_set).to be_valid
     end
   end
 

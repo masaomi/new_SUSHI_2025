@@ -10,7 +10,20 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_06_05_160702) do
+ActiveRecord::Schema[8.0].define(version: 2026_07_07_140100) do
+  create_table "api_tokens", force: :cascade do |t|
+    t.string "token_hash", null: false
+    t.string "name"
+    t.text "scope"
+    t.datetime "expires_at"
+    t.datetime "revoked_at"
+    t.string "principal", default: "static", null: false
+    t.string "login"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["token_hash"], name: "index_api_tokens_on_token_hash", unique: true
+  end
+
   create_table "data_sets", force: :cascade do |t|
     t.integer "project_id"
     t.integer "parent_id"
@@ -32,7 +45,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_06_05_160702) do
     t.text "order_ids"
     t.text "job_parameters"
     t.integer "order_id"
+    t.string "registration_key"
     t.index ["order_id"], name: "index_data_sets_on_order_id"
+    t.index ["registration_key"], name: "index_data_sets_on_registration_key", unique: true
   end
 
   create_table "jobs", force: :cascade do |t|
