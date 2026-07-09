@@ -24,7 +24,10 @@ require 'json'
 #   it does not couple to the legacy MariaDB (works against the app DB).
 module Internal
   class LegacyController < ActionController::Base
-    protect_from_forgery with: :null_session
+    # Bearer-only, session-less → skip CSRF entirely. `with: :null_session` would
+    # still invoke the unverified-request handler (Devise → request.flash=) and
+    # 500 when forgery protection is enabled (dev/prod); tests default it OFF.
+    skip_forgery_protection
 
     class InvalidField < StandardError; end
 

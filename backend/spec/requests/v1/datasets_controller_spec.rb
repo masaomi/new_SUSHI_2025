@@ -37,6 +37,28 @@ RSpec.describe 'V1::Datasets (bearer registration API)', type: :request do
     end
   end
 
+  # Regression: with forgery protection enabled (as in dev/prod; RSpec defaults it
+  # OFF), `protect_from_forgery with: :null_session` on this session-less bearer
+  # controller 500s via Devise's handle_unverified_request → request.flash=.
+  # skip_forgery_protection must fully remove the CSRF before_action.
+  describe 'CSRF (forgery protection enabled, like dev/prod)' do
+    around do |ex|
+      prev = ActionController::Base.allow_forgery_protection
+      ActionController::Base.allow_forgery_protection = true
+      ex.run
+    ensure
+      ActionController::Base.allow_forgery_protection = prev
+    end
+
+    it 'does not 500 on a bearer POST (CSRF is skipped, not null-session-handled)' do
+      token = ApiToken.issue(name: 'reg', scope: [1001])[0]
+      post '/v1/datasets/register',
+           params: { dataset_tsv: tsv, project_number: 1001, name: 'DS' }.to_json,
+           headers: bearer(token)
+      expect(response).to have_http_status(:ok)
+    end
+  end
+
   describe 'static token' do
     let!(:token) { ApiToken.issue(name: 'reg', scope: [1001])[0] }
 

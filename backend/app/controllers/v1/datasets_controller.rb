@@ -12,8 +12,13 @@ require 'json'
 # destroy (deregister).
 module V1
   class DatasetsController < ActionController::Base
-    # No forgery protection cookie surface; this surface is bearer-only.
-    protect_from_forgery with: :null_session
+    # Bearer-only, no cookies/session → CSRF protection is inapplicable. Use
+    # skip_forgery_protection, NOT `with: :null_session`: the latter still runs
+    # the unverified-request handler, which (with Devise loaded app-wide) calls
+    # request.flash= and 500s on this session-less controller when forgery
+    # protection is enabled (dev/prod). Tests default to it OFF, so this only
+    # surfaced on a live server.
+    skip_forgery_protection
 
     # Single composable authorization gate (design v0.7). Ordered before_actions;
     # no action runs unless every step passes. Endpoint authority is checked

@@ -50,6 +50,25 @@ RSpec.describe 'Internal::Legacy (machine bridge)', type: :request do
     end
   end
 
+  # Regression: forgery protection enabled (dev/prod) must not 500 the bridge.
+  # skip_forgery_protection removes the CSRF before_action entirely.
+  describe 'CSRF (forgery protection enabled, like dev/prod)' do
+    around do |ex|
+      prev = ActionController::Base.allow_forgery_protection
+      ActionController::Base.allow_forgery_protection = true
+      ex.run
+    ensure
+      ActionController::Base.allow_forgery_protection = prev
+    end
+
+    it 'does not 500 on a bearer PATCH (CSRF skipped)' do
+      job = create(:job, status: 'SUBMITTED', data_set: create(:data_set, user: nil))
+      patch "/internal/legacy/jobs/#{job.id}",
+            params: { status: 'RUNNING' }.to_json, headers: bearer(machine_token)
+      expect(response).to have_http_status(:ok)
+    end
+  end
+
   describe 'GET /internal/legacy/jobs' do
     let(:ds)         { create(:data_set, user: nil) }
     let!(:created)   { create(:job, status: 'CREATED', submit_job_id: nil, data_set: ds) }
