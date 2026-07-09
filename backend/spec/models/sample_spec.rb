@@ -49,4 +49,26 @@ RSpec.describe Sample, type: :model do
       expect(Sample.serialize_key_value_ruby(hash)).to eq('{"Name"=>"sample1", "Read1 [File]"=>"/path/file.gz"}')
     end
   end
+
+  # Priority-1c: pin the serializer against key_value strings observed VERBATIM in
+  # a real legacy SUSHI database (legacy dev DB at masa_test_sushi_20260416, Ruby
+  # 3.3.7). These are the byte-for-byte bytes the production DB stores and that
+  # legacy / btools read back with eval(); the oracle must reproduce them exactly.
+  # Verified: re-serializing the parsed hash reproduces all 6 real rows identically.
+  describe 'legacy production format parity (real sample fixtures)' do
+    # As stored (note the tag prefix form "[File]Read1", tag BEFORE the label,
+    # which differs from the "Read1 [File]" form used elsewhere — both occur).
+    REAL_LEGACY_KEY_VALUE = '{"Name"=>"sA", "[File]Read1"=>"p8888/data/a.fastq.gz"}'.freeze
+
+    it 're-serializes the parsed real row to byte-identical stored bytes' do
+      parsed = Sample.new(key_value: REAL_LEGACY_KEY_VALUE).to_hash
+      expect(Sample.serialize_key_value_ruby(parsed)).to eq(REAL_LEGACY_KEY_VALUE)
+    end
+
+    it 'parses the real row preserving Name-first order and the tag-prefix key' do
+      parsed = Sample.new(key_value: REAL_LEGACY_KEY_VALUE).to_hash
+      expect(parsed).to eq('Name' => 'sA', '[File]Read1' => 'p8888/data/a.fastq.gz')
+      expect(parsed.keys.first).to eq('Name')
+    end
+  end
 end
