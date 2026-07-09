@@ -186,6 +186,34 @@ RSpec.describe 'Internal::Legacy (machine bridge)', type: :request do
     end
   end
 
+  describe 'POST /internal/legacy/datasets/:id/update-completed-samples' do
+    let!(:data_set) { create(:data_set, user: nil) }
+
+    before do
+      # Sample with no [File] column always counts complete; the [File] one points
+      # at a path absent from the (test) gStore, so it does not count.
+      data_set.samples << Sample.new(key_value: Sample.serialize_key_value_ruby('Name' => 's1', 'Condition [Factor]' => 'A'))
+      data_set.samples << Sample.new(key_value: Sample.serialize_key_value_ruby('Name' => 's2', 'Read1 [File]' => 'p1001/absent.fastq.gz'))
+    end
+
+    it 'recounts and returns the completed / total counts' do
+      post "/internal/legacy/datasets/#{data_set.id}/update-completed-samples", headers: bearer(machine_token)
+      expect(response).to have_http_status(:ok)
+      expect(body).to eq('completed_samples' => 1, 'num_samples' => 2)
+      expect(data_set.reload.completed_samples).to eq(1)
+    end
+
+    it 'returns 404 for an unknown dataset' do
+      post '/internal/legacy/datasets/999999/update-completed-samples', headers: bearer(machine_token)
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it 'requires a machine token' do
+      post "/internal/legacy/datasets/#{data_set.id}/update-completed-samples"
+      expect(response).to have_http_status(:unauthorized)
+    end
+  end
+
   describe 'GET /internal/legacy/datasets/:id/samples' do
     let!(:data_set) { create(:data_set, user: nil) }
 

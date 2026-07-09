@@ -424,6 +424,52 @@ RSpec.describe DataSet, type: :model do
     end
   end
 
+  describe '#recount_completed_samples' do
+    let(:user) { create(:user) }
+    let(:project) { create(:project, number: 1001) }
+    let(:data_set) { create(:data_set, user: user, project: project) }
+
+    # Files considered present in gStore for the test (project-relative paths).
+    def checker_for(*present)
+      set = present.flatten.to_set
+      ->(path) { set.include?(path) }
+    end
+
+    it 'counts a sample complete only when all files of its [File] column exist' do
+      create(:sample, data_set: data_set, key_value: Sample.serialize_key_value_ruby('Name' => 's1', 'Read1 [File]' => 'p1001/a.gz'))
+      create(:sample, data_set: data_set, key_value: Sample.serialize_key_value_ruby('Name' => 's2', 'Read1 [File]' => 'p1001/b.gz'))
+
+      completed = data_set.recount_completed_samples(file_exists: checker_for('p1001/a.gz'))
+      expect(completed).to eq(1)
+      expect(data_set.reload.completed_samples).to eq(1)
+    end
+
+    it 'requires every comma-separated file in the column to exist' do
+      create(:sample, data_set: data_set, key_value: Sample.serialize_key_value_ruby('Name' => 's1', 'Reads [File]' => 'p1001/a.gz,p1001/b.gz'))
+
+      expect(data_set.recount_completed_samples(file_exists: checker_for('p1001/a.gz'))).to eq(0)
+      expect(data_set.recount_completed_samples(file_exists: checker_for('p1001/a.gz', 'p1001/b.gz'))).to eq(1)
+    end
+
+    it 'counts a sample with no [File] column as complete' do
+      create(:sample, data_set: data_set, key_value: Sample.serialize_key_value_ruby('Name' => 's1', 'Condition [Factor]' => 'A'))
+      expect(data_set.recount_completed_samples(file_exists: checker_for)).to eq(1)
+    end
+
+    it 'does not count a sample whose [File] column value is empty' do
+      create(:sample, data_set: data_set, key_value: Sample.serialize_key_value_ruby('Name' => 's1', 'Read1 [File]' => ''))
+      expect(data_set.recount_completed_samples(file_exists: checker_for)).to eq(0)
+    end
+
+    it 'short-circuits to the total once already fully complete (no re-check)' do
+      create(:sample, data_set: data_set, key_value: Sample.serialize_key_value_ruby('Name' => 's1', 'Read1 [File]' => 'p1001/a.gz'))
+      data_set.update_column(:completed_samples, 1) # equals samples_length
+      # Even a checker that would find nothing must not lower the count.
+      never = ->(_) { raise 'file checker must not be called when already complete' }
+      expect(data_set.recount_completed_samples(file_exists: never)).to eq(1)
+    end
+  end
+
   describe 'factory' do
     it 'has a valid factory' do
       data_set = build(:data_set)

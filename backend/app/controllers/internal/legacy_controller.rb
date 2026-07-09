@@ -117,6 +117,21 @@ module Internal
       render json: { project_number: project.number }, status: :ok
     end
 
+    # POST /internal/legacy/datasets/:dataset_id/update-completed-samples
+    # job_manager calls this on a job's COMPLETED transition to refresh how many
+    # samples have all their gStore files present (drives the UI progress count).
+    # Legacy exposed it as GET /data_set/:id/update_completed_samples (GET with a
+    # side effect); re-homed here as POST since it mutates. 404 if dataset absent.
+    def update_completed_samples
+      data_set = DataSet.find_by(id: params[:dataset_id])
+      unless data_set
+        render json: { error: "dataset #{params[:dataset_id]} not found" }, status: :not_found
+        return
+      end
+      completed = data_set.recount_completed_samples
+      render json: { completed_samples: completed, num_samples: data_set.samples_length }, status: :ok
+    end
+
     # GET /internal/legacy/datasets/:dataset_id/samples
     # Parsed sample rows (Ruby Hash#inspect key_value → plain hashes). Empty list
     # if the dataset has no samples (matches Ronald: queries samples, not dataset).

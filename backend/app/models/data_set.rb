@@ -229,6 +229,42 @@ class DataSet < ActiveRecord::Base
     paths.map{|path| path.split('/')[0,2].join('/')}
   end
 
+  # Recount how many samples are "complete" (all files of their first [File]
+  # column present in gStore) and persist it to completed_samples. Faithful port
+  # of legacy DataSetController#update_completed_samples_: a sample with no [File]
+  # column counts as complete; a [File] column with an empty value does not count;
+  # once completed_samples already equals the total, it short-circuits (stays
+  # complete). Called by job_manager on a job's COMPLETED transition.
+  #
+  # The only infrastructure dependency — gStore file existence — is injectable so
+  # the counting logic is testable without a real gStore. Default checks the
+  # configured gStore directory (SushiConfigHelper.gstore_dir).
+  def recount_completed_samples(file_exists: nil)
+    total = samples_length
+    file_exists ||= method(:gstore_file_exists?)
+
+    if completed_samples.to_i == total
+      available = total
+    else
+      available = 0
+      samples.each do |sample|
+        file_pair = sample.to_hash.find { |header, _value| header && header.tag?('File') }
+        if file_pair
+          value = file_pair.last
+          next if value.to_s.empty?
+          files = value.split(',')
+          available += 1 if files.all? { |f| file_exists.call(f) }
+        else
+          available += 1 # no [File] column: nothing to wait for
+        end
+      end
+    end
+
+    self.completed_samples = available
+    save(validate: false)
+    available
+  end
+
   def self.save_dataset_to_database(data_set_arr:, headers:, rows:, user: nil, child: nil, sushi_app_name: nil, key_value_format: :json)
     data_set_hash = Hash[*data_set_arr]
     
@@ -299,5 +335,13 @@ class DataSet < ActiveRecord::Base
         []
       end
     end.uniq
+  end
+
+  private
+
+  # Default gStore existence check used by recount_completed_samples: a sample
+  # file value is a project-relative path under the gStore root.
+  def gstore_file_exists?(relative_path)
+    File.exist?(File.join(SushiConfigHelper.gstore_dir, relative_path))
   end
 end

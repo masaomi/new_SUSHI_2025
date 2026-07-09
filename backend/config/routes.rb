@@ -52,6 +52,7 @@ Rails.application.routes.draw do
       get   'datasets/:dataset_id/parent',       to: 'legacy#dataset_parent'
       get   'datasets/:dataset_id/project',      to: 'legacy#dataset_project'
       get   'datasets/:dataset_id/samples',      to: 'legacy#dataset_samples'
+      post  'datasets/:dataset_id/update-completed-samples', to: 'legacy#update_completed_samples'
     end
   end
 
