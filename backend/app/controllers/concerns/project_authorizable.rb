@@ -4,7 +4,9 @@ module ProjectAuthorizable
   private
 
   def authorize_project!(project_number)
-    return if AuthenticationHelper.authentication_skipped?
+    # Token requests are always scope-enforced, even when global auth is skipped.
+    token = respond_to?(:token_authenticated?, true) && token_authenticated?
+    return if AuthenticationHelper.authentication_skipped? && !token
 
     unless current_user_project_numbers.include?(project_number.to_s)
       render json: { error: 'Forbidden' }, status: :forbidden
@@ -28,6 +30,11 @@ module ProjectAuthorizable
   end
 
   def current_user_project_numbers
+    # A bearer ApiToken authorizes exactly its own projects (user → live FGCZ;
+    # static → stored scope), enforced regardless of authentication_skipped?.
+    if respond_to?(:token_authenticated?, true) && token_authenticated?
+      return @current_user_project_numbers ||= api_token_project_numbers.map(&:to_s)
+    end
     @current_user_project_numbers ||= resolve_projects_for(current_user)
   end
 

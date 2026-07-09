@@ -22,6 +22,14 @@ class ApplicationController < ActionController::Base
   
   # Override current_user when authentication is disabled
   def current_user
+    # A bearer ApiToken authenticates as its own identity and takes precedence
+    # over the skip-authentication default, so token scope is enforced even in
+    # dev where auth is otherwise skipped. (api_token_identity is provided by
+    # ApiTokenAuthenticatable; guarded so non-including controllers are safe.)
+    if respond_to?(:token_authenticated?, true) && token_authenticated?
+      return api_token_identity
+    end
+
     if skip_authentication?
       # Return a default user
       AuthenticationHelper.get_default_user

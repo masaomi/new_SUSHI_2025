@@ -4,8 +4,11 @@ module Api
           # JWT authentication required (automatically checked by BaseController)
     
     def index
-      # When authentication is skipped, return all datasets; otherwise, only user's datasets
-        datasets = if AuthenticationHelper.authentication_skipped?
+      # Token requests are scoped to the token's projects; otherwise the existing
+      # behavior (all when auth skipped, else the user's owned datasets).
+        datasets = if token_authenticated?
+                     DataSet.joins(:project).where(projects: { number: api_token_project_numbers })
+                   elsif AuthenticationHelper.authentication_skipped?
                      DataSet.all
                    else
                      current_user.data_sets
@@ -26,11 +29,17 @@ module Api
       end
       
       def show
-        dataset = if AuthenticationHelper.authentication_skipped?
+        dataset = if token_authenticated?
+                    DataSet.find(params[:id])
+                  elsif AuthenticationHelper.authentication_skipped?
                     DataSet.find(params[:id])
                   else
                     current_user.data_sets.find(params[:id])
                   end
+        # Token requests: enforce the dataset's project is in the token's scope.
+        if token_authenticated? && !api_token_project_numbers.include?(dataset.project&.number.to_i)
+          return render json: { error: 'Forbidden' }, status: :forbidden
+        end
 
         # Build detailed payload similar to legacy SUSHI data_set/show
         render json: {

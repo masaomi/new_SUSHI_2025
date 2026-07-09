@@ -153,6 +153,12 @@ module Api
       end
 
       def resolve_user_projects
+        # A bearer ApiToken authorizes exactly its own projects (user → live FGCZ;
+        # static → stored scope), taking precedence over the anonymous default.
+        if respond_to?(:token_authenticated?, true) && token_authenticated?
+          return api_token_project_numbers.uniq.sort
+        end
+
         # Anonymous mode → allow access to all existing projects
         if AuthenticationHelper.authentication_skipped?
           return Project.pluck(:number).uniq.sort

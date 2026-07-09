@@ -8,8 +8,12 @@ module JwtAuthenticatable
   private
 
   def authenticate_jwt_token
+    # A bearer ApiToken (prepended ApiTokenAuthenticatable) already authenticated
+    # the request; do not also demand a JWT.
+    return if defined?(@api_token) && @api_token
+
     return if AuthenticationHelper.authentication_skipped?
-    
+
     # Skip if user identification is not required for this API
     return if skip_jwt_authentication?
     

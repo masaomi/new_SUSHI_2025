@@ -14,6 +14,14 @@ module Api
         next_dataset_name = job_params[:next_dataset_name]
         next_dataset_comment = job_params[:next_dataset_comment]
 
+        # Token requests: the input dataset's project must be in the token's scope.
+        if token_authenticated?
+          input = DataSet.find_by(id: dataset_id)
+          unless input && api_token_project_numbers.include?(input.project&.number.to_i)
+            return render json: { error: 'Forbidden' }, status: :forbidden
+          end
+        end
+
         # Get current user (or use default if auth is skipped)
         user = current_user || User.find_by(login: 'sushi_lover') || User.first
 
@@ -53,7 +61,12 @@ module Api
       # Get job details
       def show
         job = Job.find(params[:id])
-        
+
+        # Token requests: enforce the job's dataset project is in the token's scope.
+        if token_authenticated? && !job_in_token_scope?(job)
+          return render json: { error: 'Forbidden' }, status: :forbidden
+        end
+
         render json: {
           job: serialize_job(job, include_details: true)
         }
@@ -65,7 +78,16 @@ module Api
       # List jobs (optionally filtered)
       def index
         jobs = Job.all
-        
+
+        # Token requests: restrict to jobs whose input/next dataset is in a project
+        # the token is authorized for.
+        if token_authenticated?
+          dataset_ids = DataSet.joins(:project)
+                               .where(projects: { number: api_token_project_numbers })
+                               .pluck(:id)
+          jobs = jobs.where(next_dataset_id: dataset_ids).or(Job.where(input_dataset_id: dataset_ids))
+        end
+
         # Filter by status if provided
         if params[:status].present?
           jobs = jobs.where(status: params[:status])
@@ -92,6 +114,15 @@ module Api
       end
 
       private
+
+      # A job is in the token's scope if either its produced or consumed dataset
+      # belongs to a project the token is authorized for.
+      def job_in_token_scope?(job)
+        numbers = [job.next_dataset_id, job.input_dataset_id].compact.map do |dsid|
+          DataSet.find_by(id: dsid)&.project&.number.to_i
+        end
+        (numbers & api_token_project_numbers).any?
+      end
 
       def job_params
         params.require(:job).permit(
