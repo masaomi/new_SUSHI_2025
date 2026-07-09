@@ -56,4 +56,23 @@ class LegacyRecord < ActiveRecord::Base
     establish_connection(legacy_config)
     self
   end
+
+  # Legacy IANA zone (default Europe/Zurich; legacy runs time_zone='Europe/Zurich').
+  def self.legacy_time_zone
+    ENV.fetch('LEGACY_MYSQL_TIME_ZONE', 'Europe/Zurich')
+  end
+
+  # Legacy stores wall-clock LOCAL time (default_timezone = :local), so a legacy
+  # write must persist the local wall clock, NOT UTC. Relying on Rails' :local is
+  # fragile — it reads the process/system TZ, which is UTC in most containers, so
+  # it would silently write UTC. Instead, format the instant in the legacy zone as
+  # a NAIVE string; written to a datetime column it is stored verbatim, identical
+  # to what legacy Rails writes, independent of the server's process TZ and of the
+  # app-global ActiveRecord.default_timezone (which stays :utc for our own tables).
+  #
+  # Use this for every datetime a legacy write sets (created_at/updated_at/…).
+  # Verified against real legacy data + a process-TZ-independence probe (1c).
+  def self.legacy_wall_clock(time = Time.current)
+    time.in_time_zone(legacy_time_zone).strftime('%Y-%m-%d %H:%M:%S.%6N')
+  end
 end

@@ -63,4 +63,41 @@ RSpec.describe LegacyRecord, type: :model do
       expect(LegacyRecord.abstract_class).to be(true)
     end
   end
+
+  describe '.legacy_wall_clock (local-time write primitive)' do
+    # 2026-07-09 12:00 UTC == 14:00 Europe/Zurich (CEST, +02:00).
+    let(:instant) { Time.utc(2026, 7, 9, 12, 0, 0) }
+
+    it 'formats an instant as the legacy zone wall-clock naive string' do
+      expect(LegacyRecord.legacy_wall_clock(instant)).to eq('2026-07-09 14:00:00.000000')
+    end
+
+    it 'is independent of the app-global ActiveRecord.default_timezone' do
+      saved = ActiveRecord.default_timezone
+      begin
+        ActiveRecord.default_timezone = :utc
+        utc_result = LegacyRecord.legacy_wall_clock(instant)
+        ActiveRecord.default_timezone = :local
+        local_result = LegacyRecord.legacy_wall_clock(instant)
+        expect(utc_result).to eq(local_result)
+        expect(utc_result).to eq('2026-07-09 14:00:00.000000')
+      ensure
+        ActiveRecord.default_timezone = saved
+      end
+    end
+
+    it 'honors LEGACY_MYSQL_TIME_ZONE override' do
+      begin
+        ENV['LEGACY_MYSQL_TIME_ZONE'] = 'UTC'
+        expect(LegacyRecord.legacy_wall_clock(instant)).to eq('2026-07-09 12:00:00.000000')
+      ensure
+        ENV.delete('LEGACY_MYSQL_TIME_ZONE')
+      end
+    end
+
+    it 'reflects the winter (CET, +01:00) offset correctly' do
+      winter = Time.utc(2026, 1, 15, 12, 0, 0) # 13:00 Zurich in CET
+      expect(LegacyRecord.legacy_wall_clock(winter)).to eq('2026-01-15 13:00:00.000000')
+    end
+  end
 end
