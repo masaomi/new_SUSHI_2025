@@ -38,6 +38,23 @@ Rails.application.routes.draw do
     delete 'datasets/:id',           to: 'datasets#destroy'
   end
 
+  # Machine-to-machine internal bridge (bearer-only, static ApiToken). Mirrors
+  # Ronald's FastAPI /internal/legacy/* so job_manager / GeoUploader reach New
+  # SUSHI by base-URL swap. See app/controllers/internal/legacy_controller.rb.
+  # by-bfabric is declared before the :dataset_id routes so it is not shadowed.
+  namespace :internal do
+    scope :legacy do
+      get   'jobs',                              to: 'legacy#jobs'
+      patch 'jobs/:id',                          to: 'legacy#patch_job'
+      get   'datasets/:dataset_id/jobs',         to: 'legacy#dataset_jobs'
+      get   'projects/:project_number/datasets', to: 'legacy#project_datasets'
+      get   'datasets/by-bfabric/:bfabric_id',   to: 'legacy#dataset_by_bfabric'
+      get   'datasets/:dataset_id/parent',       to: 'legacy#dataset_parent'
+      get   'datasets/:dataset_id/project',      to: 'legacy#dataset_project'
+      get   'datasets/:dataset_id/samples',      to: 'legacy#dataset_samples'
+    end
+  end
+
   namespace :api do
     namespace :v1 do
       # Public API routes (no JWT authentication required)
