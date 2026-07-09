@@ -1,8 +1,8 @@
 require 'rails_helper'
 
 RSpec.describe 'Internal::Legacy (machine bridge)', type: :request do
-  # A machine (static) token authorizes the whole internal surface.
-  let!(:machine_token) { ApiToken.issue(name: 'job_manager', scope: [1001])[0] }
+  # A machine-principal token authorizes the whole internal surface.
+  let!(:machine_token) { ApiToken.issue(name: 'job_manager', principal: 'machine')[0] }
 
   def bearer(raw)
     { 'Authorization' => "Bearer #{raw}", 'CONTENT_TYPE' => 'application/json' }
@@ -28,6 +28,25 @@ RSpec.describe 'Internal::Legacy (machine bridge)', type: :request do
       user_token = ApiToken.issue(name: 'u', principal: 'user', login: 'masaomi', ttl_days: 30)[0]
       get '/internal/legacy/jobs', params: { status: 'CREATED' }, headers: bearer(user_token)
       expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'returns 403 for a static (project-scoped registration) token (no privilege crossover)' do
+      static_token = ApiToken.issue(name: 'reg', scope: [1001])[0]
+      get '/internal/legacy/jobs', params: { status: 'CREATED' }, headers: bearer(static_token)
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'returns 400 for a malformed JSON body on PATCH' do
+      job = create(:job, status: 'SUBMITTED', data_set: create(:data_set, user: nil))
+      patch "/internal/legacy/jobs/#{job.id}", params: 'not-json', headers: bearer(machine_token)
+      expect(response).to have_http_status(:bad_request)
+    end
+
+    it 'returns 422 for an unparseable PATCH timestamp' do
+      job = create(:job, status: 'SUBMITTED', data_set: create(:data_set, user: nil))
+      patch "/internal/legacy/jobs/#{job.id}",
+            params: { start_time: 'not-a-timestamp' }.to_json, headers: bearer(machine_token)
+      expect(response).to have_http_status(:unprocessable_entity)
     end
   end
 

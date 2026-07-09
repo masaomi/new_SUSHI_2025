@@ -21,6 +21,7 @@ module V1
     # fails deterministically (403) rather than with a resolver-dependent 503.
     before_action :enforce_tls
     before_action :require_bearer_token
+    before_action :reject_machine_principal!
     before_action :reject_blank_user_login!
     before_action :authorize_endpoint!
 
@@ -28,6 +29,11 @@ module V1
     # 503 (a retryable availability failure, distinct from a 403 authz denial).
     rescue_from ApiToken::ResolverUnavailable do
       render json: { error: "authorization backend unavailable" }, status: :service_unavailable
+    end
+
+    # A malformed JSON body is a client error (400), not a silently-empty request.
+    rescue_from JSON::ParserError do
+      render json: { error: "malformed JSON body" }, status: :bad_request
     end
 
     # POST /v1/datasets/validate
@@ -54,6 +60,11 @@ module V1
       bfabric_id = body_param(:bfabric_id)
       if bfabric_id.to_s.empty?
         render json: { error: "bfabric_id is required" }, status: :unprocessable_entity
+        return
+      end
+      # Must be a positive integer; a non-numeric value would silently coerce to 0.
+      unless bfabric_id.to_s.match?(/\A\d+\z/) && bfabric_id.to_i.positive?
+        render json: { error: "bfabric_id must be a positive integer" }, status: :unprocessable_entity
         return
       end
 
@@ -94,6 +105,14 @@ module V1
       @api_token = ApiToken.authenticate(bearer_token)
       return if @api_token
       render json: { error: "unauthorized" }, status: :unauthorized
+    end
+
+    # The registration API is for static (project-scoped) and user principals.
+    # A machine principal belongs to the /internal bridge only; reject it here so
+    # an infra credential cannot be repurposed to register/mutate datasets.
+    def reject_machine_principal!
+      return unless @api_token&.machine?
+      render json: { error: "action not permitted for this token" }, status: :forbidden
     end
 
     # A user token must carry a non-blank login; reject before any resolver call.
@@ -194,12 +213,12 @@ module V1
       json_body[key.to_s]
     end
 
+    # A malformed body raises JSON::ParserError → 400 via rescue_from, instead of
+    # being silently treated as an empty request.
     def json_body
       @json_body ||= begin
         raw = request.body.read
         raw.to_s.empty? ? {} : JSON.parse(raw)
-      rescue JSON::ParserError
-        {}
       end
     end
   end

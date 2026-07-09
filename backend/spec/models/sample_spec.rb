@@ -34,6 +34,23 @@ RSpec.describe Sample, type: :model do
       expect(Sample.serialize_key_value_ruby({ 'K' => nil })).to eq('{"K"=>nil}')
     end
 
+    # Ruby String#inspect escapes `#` only when it introduces interpolation
+    # (#{, #@, #$). Without this, an eval() reader (legacy SUSHI / btools) would
+    # interpolate — a data-corruption and code-execution vector.
+    it 'escapes # before {, @, $ to match Ruby Hash#to_s and defuse eval interpolation' do
+      expect(Sample.serialize_key_value_ruby({ 'K' => 'a#{7+1}b' })).to eq('{"K"=>"a\\#{7+1}b"}')
+      expect(Sample.serialize_key_value_ruby({ 'K' => 'x#@f' })).to eq('{"K"=>"x\\#@f"}')
+      expect(Sample.serialize_key_value_ruby({ 'K' => 'y#$g' })).to eq('{"K"=>"y\\#$g"}')
+      # a bare '#' (and '# ') is NOT escaped, exactly like Ruby
+      expect(Sample.serialize_key_value_ruby({ 'K' => 'p # q' })).to eq('{"K"=>"p # q"}')
+    end
+
+    it 'is byte-identical to Ruby Hash#to_s for interpolation-bearing values' do
+      %w[a#{1} x#@f y#$g plain ends# a#b].each do |v|
+        expect(Sample.serialize_key_value_ruby({ 'Name' => v })).to eq({ 'Name' => v }.to_s)
+      end
+    end
+
     it 'serializes an empty hash as {}' do
       expect(Sample.serialize_key_value_ruby({})).to eq('{}')
     end

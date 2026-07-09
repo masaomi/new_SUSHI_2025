@@ -64,6 +64,15 @@ class DatasetRegistrationService
     end
     checks << { check: "manifest", status: "ok" }
 
+    # name presence: DataSet validates presence of name, so a blank name would
+    # otherwise raise on save! (500). Surface it as a 422 here instead.
+    if name.to_s.strip.empty?
+      checks << { check: "name", status: "failed", detail: "name is required" }
+      errors << { check: "name", detail: "name is required" }
+    else
+      checks << { check: "name", status: "ok" }
+    end
+
     # parent integrity (INV-10): must exist and share the project.
     if parent_id.nil? || parent_id.to_s.empty?
       checks << { check: "parent", status: "not_applicable" }
@@ -173,8 +182,12 @@ class DatasetRegistrationService
   # --- deregister (compensation) ----------------------------------------
 
   def self.deregister(data_set)
-    data_set.samples.destroy_all
-    data_set.destroy!
+    # One transaction so a failure cannot leave samples deleted but the dataset
+    # (or vice versa) behind.
+    ActiveRecord::Base.transaction do
+      data_set.samples.destroy_all
+      data_set.destroy!
+    end
     { http: 200, body: { ok: true, state: "COMPENSATED" } }
   end
 

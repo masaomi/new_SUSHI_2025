@@ -10,10 +10,15 @@ require 'securerandom'
 #
 # A token has exactly one principal:
 #   - `static`: authorized against the stored project-number array (`scope`),
-#     frozen at issue.
+#     frozen at issue. Used by the /v1 registration API.
 #   - `user`: bound to a non-blank LDAP `login` and a mandatory bounded TTL;
 #     authorized live, per request, against the login's current FGCZ project
 #     membership (no cache, W=0). `scope` is unused.
+#   - `machine`: an unscoped infrastructure credential for the /internal bridge
+#     (job_manager / GeoUploader), which operates system-wide. Kept DISTINCT from
+#     `static` on purpose: a project-scoped registration token must NOT also grant
+#     system-wide internal-bridge access. The /internal surface requires `machine`;
+#     the /v1 surface rejects it.
 class ApiToken < ActiveRecord::Base
   serialize :scope, type: Array, coder: YAML
 
@@ -61,8 +66,12 @@ class ApiToken < ActiveRecord::Base
       if Array(scope).map { |x| x.to_s.strip }.reject(&:empty?).empty?
         raise ArgumentError, "scope is required for a static token"
       end
+    when "machine"
+      # An infra credential for the /internal bridge: no project scope (it acts
+      # system-wide) and no login. TTL is optional (long-lived infra secret).
+      scope = []
     else
-      raise ArgumentError, "unknown principal #{principal.inspect} (expected static|user)"
+      raise ArgumentError, "unknown principal #{principal.inspect} (expected static|user|machine)"
     end
 
     raw = SecureRandom.urlsafe_base64(32)
@@ -91,7 +100,11 @@ class ApiToken < ActiveRecord::Base
   end
 
   def static?
-    !user?
+    principal.to_s == "static"
+  end
+
+  def machine?
+    principal.to_s == "machine"
   end
 
   def active?

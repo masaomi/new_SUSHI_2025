@@ -12,19 +12,30 @@ require 'json'
 #   Ronald mounts /internal behind get_machine_caller, which is a NO-OP stub
 #   ("service=anonymous") — i.e. unauthenticated. Per the priority-1b directive
 #   (no unauthenticated DB access), this surface is bearer-only and fail-closed
-#   via a STATIC ApiToken (a machine principal). User-principal tokens are
-#   rejected (403): these callers are infrastructure daemons, not people.
+#   via a MACHINE-principal ApiToken. static (project-scoped registration) and
+#   user tokens are rejected (403): a project-scoped /v1 token must NOT gain
+#   system-wide internal-bridge authority, and these callers are infrastructure
+#   daemons, not people.
 #
 #   No per-project scoping is applied here: job_manager polls jobs system-wide
-#   and GeoUploader reads across projects, so the internal bridge authorizes any
-#   valid static machine token for the whole surface (one trusted infra token).
-#   This is the validation-oracle re-implementation of the contract Ronald leads
-#   on; it does not couple to the legacy MariaDB (works against the app DB).
+#   and GeoUploader reads across projects, so any valid machine token authorizes
+#   the whole surface (one trusted infra credential, principal 'machine'). This
+#   is the validation-oracle re-implementation of the contract Ronald leads on;
+#   it does not couple to the legacy MariaDB (works against the app DB).
 module Internal
   class LegacyController < ActionController::Base
     protect_from_forgery with: :null_session
 
-    before_action :require_static_machine_token
+    class InvalidField < StandardError; end
+
+    rescue_from JSON::ParserError do
+      render json: { error: 'malformed JSON body' }, status: :bad_request
+    end
+    rescue_from InvalidField do |e|
+      render json: { error: e.message }, status: :unprocessable_entity
+    end
+
+    before_action :require_machine_token
 
     # Fields job_manager may write on a state transition. Mirrors Ronald's
     # PatchJobRequest exactly; anything else in the body is ignored.
@@ -142,13 +153,13 @@ module Internal
 
     private
 
-    def require_static_machine_token
+    def require_machine_token
       @api_token = ApiToken.authenticate(bearer_token)
       unless @api_token
         render json: { error: 'unauthorized' }, status: :unauthorized
         return
       end
-      return if @api_token.static?
+      return if @api_token.machine?
 
       render json: { error: 'internal bridge requires a machine token' }, status: :forbidden
     end
@@ -163,7 +174,14 @@ module Internal
       when 'submit_job_id'
         value.nil? ? nil : value.to_i
       when 'start_time', 'end_time'
-        value.nil? ? nil : Time.zone.parse(value.to_s)
+        return nil if value.nil?
+        parsed = begin
+          Time.zone.parse(value.to_s)
+        rescue ArgumentError
+          nil
+        end
+        raise InvalidField, "#{field} is not a valid timestamp" if parsed.nil?
+        parsed
       else
         value
       end
@@ -190,12 +208,13 @@ module Internal
       { id: job.id, submit_job_id: job.submit_job_id, status: job.status }
     end
 
+    # Parse the JSON body. A malformed body raises JSON::ParserError, mapped to a
+    # 400 by rescue_from (rather than being silently treated as {}), so a client
+    # bug surfaces instead of a no-op success.
     def json_body
       @json_body ||= begin
         raw = request.body.read
         raw.to_s.empty? ? {} : JSON.parse(raw)
-      rescue JSON::ParserError
-        {}
       end
     end
   end

@@ -29,9 +29,15 @@ class Sample < ActiveRecord::Base
     "{" + pairs.join(", ") + "}"
   end
 
-  # Escape a string for a Ruby double-quoted literal: backslash first, then quote.
+  # Escape a string for a Ruby double-quoted literal exactly as Ruby's own
+  # String#inspect (hence Hash#to_s) does: backslash first, then double quote,
+  # then `#` when it introduces interpolation (`#{`, `#@`, `#$`). Escaping `#`
+  # is REQUIRED — without it a value like `#{...}` diverges from the stored
+  # legacy bytes AND, because legacy SUSHI / btools reconstruct key_value with
+  # eval(), would interpolate (arbitrary-code) when read back. A bare `#` is
+  # left as-is (Ruby does not escape it).
   def self.escape_ruby(str)
-    str.gsub("\\") { "\\\\" }.gsub('"') { "\\\"" }
+    str.gsub("\\") { "\\\\" }.gsub('"') { "\\\"" }.gsub(/#(?=[{@$])/) { "\\#" }
   end
   private_class_method :escape_ruby
 

@@ -21,6 +21,20 @@ RSpec.describe 'V1::Datasets (bearer registration API)', type: :request do
            headers: bearer('bogus')
       expect(response).to have_http_status(:unauthorized)
     end
+
+    it 'returns 403 for a machine-principal token (registration is not for the infra bridge)' do
+      machine = ApiToken.issue(name: 'jm', principal: 'machine')[0]
+      post '/v1/datasets/validate',
+           params: { dataset_tsv: tsv, project_number: 1001, name: 'DS' }.to_json,
+           headers: bearer(machine)
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'returns 400 for a malformed JSON body' do
+      token = ApiToken.issue(name: 'reg', scope: [1001])[0]
+      post '/v1/datasets/validate', params: 'not-json', headers: bearer(token)
+      expect(response).to have_http_status(:bad_request)
+    end
   end
 
   describe 'static token' do
@@ -56,6 +70,21 @@ RSpec.describe 'V1::Datasets (bearer registration API)', type: :request do
       put "/v1/datasets/#{ds.id}/bfabric-id",
           params: { bfabric_id: 999 }.to_json, headers: bearer(token)
       expect(response).to have_http_status(:conflict)
+    end
+
+    it 'rejects a non-numeric bfabric_id with 422 (never coerces to 0)' do
+      ds = create(:data_set, project: create(:project, number: 1001))
+      put "/v1/datasets/#{ds.id}/bfabric-id",
+          params: { bfabric_id: 'abc' }.to_json, headers: bearer(token)
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(ds.reload.bfabric_id).to be_nil
+    end
+
+    it 'returns 422 for a blank dataset name (not a 500)' do
+      post '/v1/datasets/register',
+           params: { dataset_tsv: tsv, project_number: 1001, name: '' }.to_json,
+           headers: bearer(token)
+      expect(response).to have_http_status(:unprocessable_entity)
     end
   end
 

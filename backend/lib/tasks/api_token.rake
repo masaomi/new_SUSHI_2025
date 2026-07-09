@@ -7,16 +7,22 @@ namespace :api_token do
   # user: bound to an LDAP login; authorized live against that login's current
   # FGCZ project membership. login + a bounded TTL are mandatory; SCOPE ignored.
   #   rake api_token:issue PRINCIPAL=user NAME=hubert-reg LOGIN=hubert TTL_DAYS=90
-  desc "Issue an API token (NAME=, PRINCIPAL=static|user, SCOPE=comma,projects (static), LOGIN= (user), TTL_DAYS=)"
+  # machine: unscoped infra credential for the /internal bridge (job_manager /
+  # GeoUploader). No SCOPE, no LOGIN; TTL optional.
+  #   rake api_token:issue PRINCIPAL=machine NAME=job_manager
+  desc "Issue an API token (NAME=, PRINCIPAL=static|user|machine, SCOPE=comma,projects (static), LOGIN= (user), TTL_DAYS=)"
   task issue: :environment do
     name      = ENV["NAME"] or abort("NAME is required")
     principal = (ENV["PRINCIPAL"] || "static").strip
     ttl       = ENV["TTL_DAYS"]
 
     begin
-      if principal == "user"
+      case principal
+      when "user"
         raw, record = ApiToken.issue(name: name, ttl_days: ttl,
                                      principal: "user", login: ENV["LOGIN"])
+      when "machine"
+        raw, record = ApiToken.issue(name: name, principal: "machine", ttl_days: ttl)
       else
         scope = ENV["SCOPE"].to_s.split(",").map(&:strip).reject(&:empty?).map(&:to_i)
         abort("SCOPE is required (comma-separated project numbers)") if scope.empty?

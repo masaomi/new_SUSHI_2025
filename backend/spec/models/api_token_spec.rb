@@ -49,6 +49,24 @@ RSpec.describe ApiToken, type: :model do
       end
     end
 
+    context 'machine principal' do
+      it 'issues an unscoped, login-less machine token' do
+        _raw, token = ApiToken.issue(name: 'job_manager', principal: 'machine')
+        expect(token.principal).to eq('machine')
+        expect(token.machine?).to be(true)
+        expect(token.static?).to be(false)
+        expect(token.user?).to be(false)
+        expect(token.scope).to eq([])
+        expect(token.login).to be_nil
+      end
+
+      it 'ignores any scope passed and is active with no expiry' do
+        _raw, token = ApiToken.issue(name: 'jm', principal: 'machine', scope: [1001])
+        expect(token.scope).to eq([])
+        expect(token.active?).to be(true)
+      end
+    end
+
     it 'rejects an unknown principal' do
       expect { ApiToken.issue(name: 'x', principal: 'root', scope: [1]) }
         .to raise_error(ArgumentError, /unknown principal/)
