@@ -35,6 +35,7 @@ EOS
     @inherit_columns = ["Order Id"]
   end
  def set_default_parameters
+    super # apply base defaults (e.g. partition) before app-specific ones
     @params['paired'] = dataset_has_column?('Read2')
   end
   def preprocess
