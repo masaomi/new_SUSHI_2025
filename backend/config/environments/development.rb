@@ -80,9 +80,12 @@ Rails.application.configure do
   config.action_controller.raise_on_missing_callback_actions = true
 
   config.hosts.clear
-  # Add hosts allowed to access in development environment
-  config.hosts << "fgcz-h-083"
-  config.hosts << "fgcz-h-083.fgcz-net.unizh.ch"
+  # Add hosts allowed to access in development environment.
+  # Node-agnostic: allow the whole FGCZ domain and this node's own hostname so the
+  # same config works on any node a dev instance is started on (operate from other
+  # nodes via the node's FQDN). A leading-dot string matches the domain + subdomains.
+  config.hosts << ".fgcz-net.unizh.ch"        # any *.fgcz-net.unizh.ch host
+  config.hosts << Socket.gethostname          # this node's short hostname
   config.hosts << "localhost"
   config.hosts << "127.0.0.1"
 end
