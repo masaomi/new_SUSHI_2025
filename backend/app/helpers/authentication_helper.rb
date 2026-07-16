@@ -68,7 +68,19 @@ module AuthenticationHelper
     methods
   end
   
+  # Single choke point for "is authentication skipped for this request?".
+  #
+  # Fail-CLOSED in production: authentication is NEVER skipped there unless an
+  # operator explicitly opts into anonymous access (SUSHI_ALLOW_ANONYMOUS=1).
+  # This closes the "anonymous 200 + all-projects fallback on the live prod DB"
+  # hole: a production surface requires a credential (bearer ApiToken or JWT)
+  # regardless of which interactive login methods are enabled — so we do NOT need
+  # to stand up LDAP/standard_login just to force 401. SUSHI_REQUIRE_AUTH=1 forces
+  # the same in any environment.
   def self.authentication_skipped?
+    return false if ENV["SUSHI_REQUIRE_AUTH"] == "1"
+    return false if Rails.env.production? && ENV["SUSHI_ALLOW_ANONYMOUS"] != "1"
+
     enabled_auth_methods.empty?
   end
   

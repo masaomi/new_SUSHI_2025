@@ -46,6 +46,25 @@ test:
 
 # Store production database in the storage/ directory, which by default
 # is mounted as a persistent Docker volume in config/deploy.yml.
+<% if ENV["LEGACY_DATABASE"] == "true" %>
+# --- Legacy-coexistence production profile ------------------------------------
+# Running in production against the legacy shared SUSHI MySQL `sushi` DB via socket
+# (coexisting with legacy production SUSHI). SINGLE primary connection only — no
+# cache/queue/cable. The Solid stack is disabled in production.rb under the same
+# LEGACY_DATABASE flag, so nothing connects to or creates solid_* tables in the live
+# schema. Uses ENV["SUSHI_DB_PASSWORD"] (NOT ENV.fetch without a default: ERB renders
+# every env block, so a missing var would KeyError unrelated commands). DO NOT migrate.
+production:
+  primary:
+    adapter: mysql2
+    encoding: utf8mb4
+    pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+    database: <%= ENV.fetch("SUSHI_DB_NAME", "sushi") %>
+    username: <%= ENV.fetch("SUSHI_DB_USERNAME", "sushilover") %>
+    password: <%= ENV["SUSHI_DB_PASSWORD"] %>
+    socket: /var/run/mysqld/mysqld.sock
+    reconnect: true
+<% else %>
 production:
   primary:
     adapter: mysql2
@@ -86,3 +105,4 @@ production:
     host: <%= ENV.fetch("MYSQL_HOST", "db") %>
     port: <%= ENV.fetch("MYSQL_PORT", 3306) %>
     migrations_paths: db/cable_migrate
+<% end %>

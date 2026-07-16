@@ -1,4 +1,5 @@
 require "active_support/core_ext/integer/time"
+require "socket"
 
 Rails.application.configure do
   # Settings specified here will take precedence over those in config/application.rb.
@@ -27,8 +28,14 @@ Rails.application.configure do
   # Force all access to the app over SSL, use Strict-Transport-Security, and use secure cookies.
   config.force_ssl = true
 
-  # Skip http-to-https redirect for the default health check endpoint.
-  # config.ssl_options = { redirect: { exclude: ->(request) { request.path == "/up" } } }
+  # Skip http-to-https redirect for the default health check endpoint, and keep the
+  # HSTS max-age short: this surface is reached by an internal hostname behind a
+  # TLS-terminating reverse proxy, so a long HSTS could poison browsers/clients
+  # against any future plaintext access to that host.
+  config.ssl_options = {
+    redirect: { exclude: ->(request) { request.path == "/up" } },
+    hsts: { expires: 1.week, subdomains: false }
+  }
 
   # Log to STDOUT with the current request id as a default log tag.
   config.log_tags = [ :request_id ]
@@ -83,4 +90,26 @@ Rails.application.configure do
   #
   # Skip DNS rebinding protection for the default health check endpoint.
   # config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
+
+  # --- Legacy-coexistence bare-metal profile ------------------------------------
+  # When running in production against the legacy shared SUSHI MySQL DB (coexisting
+  # with the legacy production SUSHI on the same node/DB), disable the Docker/Kamal
+  # Solid stack so NO cache/queue/cable connection is ever opened (the production
+  # database.yml then exposes only a single primary `sushi` socket connection — see
+  # database.yml). This keeps the app additive-only: it never creates solid_* tables
+  # in the live production schema. DO NOT run db:prepare/db:migrate here.
+  if ENV["LEGACY_DATABASE"] == "true"
+    config.cache_store = :memory_store
+    config.active_job.queue_adapter = :async
+
+    # Application-layer Host allowlist (DNS-rebinding protection), node-agnostic,
+    # mirroring development. The public surface is fronted by Apache; this is a
+    # second layer. Health check is exempt.
+    config.hosts.clear
+    config.hosts << ".fgcz-net.unizh.ch"
+    config.hosts << Socket.gethostname
+    config.hosts << "localhost"
+    config.hosts << "127.0.0.1"
+    config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
+  end
 end

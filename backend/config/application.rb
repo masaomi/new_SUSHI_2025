@@ -1,6 +1,7 @@
 require_relative "boot"
 
 require "rails/all"
+require_relative "../lib/middleware/sushi_read_only_guard"
 
 # Require the gems listed in Gemfile, including any gems
 # you've limited to :test, :development, or :production.
@@ -15,7 +16,11 @@ module Backend
     # not contain `.rb` files, or that should not be reloaded or eager loaded.
     # Common ones are `templates`, `generators`, or `middleware`, for example.
     # Ignore lib directory entirely to avoid Zeitwerk naming conflicts
-    config.autoload_lib(ignore: %w[assets tasks apps fgcz.rb global_variables.rb sushi_fabric.rb])
+    config.autoload_lib(ignore: %w[assets tasks apps middleware fgcz.rb global_variables.rb sushi_fabric.rb])
+
+    # Server-side read-only guard (active only when SUSHI_READ_ONLY=1). Rack-level so
+    # it covers every controller hierarchy uniformly. See lib/middleware/sushi_read_only_guard.rb.
+    config.middleware.use Middleware::SushiReadOnlyGuard
 
     # Configuration for the application, engines, and railties goes here.
     #
