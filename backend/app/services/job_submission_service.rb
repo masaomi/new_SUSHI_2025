@@ -54,11 +54,9 @@ class JobSubmissionService
       return false
     end
 
-    # Check if app file exists
-    # Normalize app_name: add "App" suffix if not present
-    @normalized_app_name = @app_name.end_with?('App') ? @app_name : "#{@app_name}App"
-    app_file = Rails.root.join('lib', 'apps', "#{@normalized_app_name}.rb")
-    unless File.exist?(app_file)
+    # Check the app is resolvable (native ported app or allow-listed legacy app)
+    @normalized_app_name = LegacyAppLoader.normalize(@app_name)
+    unless LegacyAppLoader.available?(@app_name)
       @errors << "Application not found: #{@app_name}"
       return false
     end
@@ -67,16 +65,15 @@ class JobSubmissionService
   end
 
   def load_sushi_app
-    # Require the app file (use normalized name with App suffix)
-    app_file = Rails.root.join('lib', 'apps', "#{@normalized_app_name}.rb")
-    require app_file
+    # Load & instantiate via the shared loader (native app or legacy-on-shim)
+    app_class = LegacyAppLoader.load(@app_name)
+    unless app_class
+      @errors << "Failed to load application class: #{@normalized_app_name}"
+      return false
+    end
 
-    # Instantiate the app (use normalized class name)
-    @sushi_app = Object.const_get(@normalized_app_name).new
+    @sushi_app = app_class.new
     true
-  rescue NameError => e
-    @errors << "Failed to load application class: #{@normalized_app_name} - #{e.message}"
-    false
   rescue StandardError => e
     @errors << "Error loading application: #{e.message}"
     false
@@ -99,6 +96,14 @@ class JobSubmissionService
 
     # Set default parameters first
     @sushi_app.set_default_parameters
+
+    # Centralized base defaults: some (legacy) apps override set_default_parameters
+    # WITHOUT calling super, so the shim's base defaults never run — leaving partition
+    # empty (the "-p nan" class of bug). Apply the base partition default here so it
+    # holds regardless of whether the app called super.
+    if @sushi_app.params['partition'].to_s.empty?
+      @sushi_app.params['partition'] = SushiConfigHelper.default_partition
+    end
 
     # Override with user-provided parameters (normalize to plain Hash)
     normalized_params = normalize_parameters(@parameters)

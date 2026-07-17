@@ -43,5 +43,14 @@ module Backend
     config.gstore_dir = ENV.fetch('GSTORE_DIR', '/srv/gstore')
     config.submit_job_script_dir = ENV.fetch('SUBMIT_JOB_SCRIPT_DIR', Rails.root.join('tmp', 'job_scripts').to_s)
     config.scratch_dir = ENV.fetch('SCRATCH_DIR', '/scratch')
+
+    # Generic legacy-app loader (see LegacyAppLoader): directory holding legacy SUSHI
+    # *App.rb files (e.g. a legacy SUSHI checkout's master/lib). Empty = feature off
+    # (only backend-native ported apps in lib/apps are exposed).
+    config.legacy_apps_dir = ENV.fetch('LEGACY_APPS_DIR', '')
+    # Allow-list of legacy app base names verified to run headless on the backend shim.
+    # Only these legacy apps are exposed via the API; grows as apps are verified.
+    config.legacy_apps_allowlist =
+      ENV.fetch('LEGACY_APPS_ALLOWLIST', 'FastqScreen,DESeq2').split(',').map(&:strip).reject(&:empty?)
   end
 end

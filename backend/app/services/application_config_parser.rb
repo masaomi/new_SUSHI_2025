@@ -2,63 +2,37 @@
 # This service loads *App.rb files from the apps directory and extracts
 # metadata, parameters, and form field definitions
 class ApplicationConfigParser
-  APPS_DIR = Rails.root.join('lib', 'apps')
-  
   class << self
     # Parse a SUSHI application file and return its configuration
     # @param app_name [String] The application name (e.g., 'Fastqc')
     # @return [Hash, nil] Configuration hash or nil if app not found
     def parse(app_name)
-      app_file = find_app_file(app_name)
-      return nil unless app_file
-      
+      app_class = LegacyAppLoader.load(app_name)
+      return nil unless app_class
+
       begin
-        load_and_extract_config(app_file, app_name)
+        extract_config(app_class)
       rescue StandardError => e
         Rails.logger.error("Error parsing #{app_name}App: #{e.message}")
         Rails.logger.error(e.backtrace.join("\n"))
         nil
       end
     end
-    
-    # List all available application names
+
+    # List all available application names (native + allow-listed legacy)
     # @return [Array<String>] Array of application names
     def list_apps
-      Dir.glob(APPS_DIR.join('*App.rb')).map do |file|
-        File.basename(file, 'App.rb')
-      end.sort
+      LegacyAppLoader.list_apps
     end
-    
+
     private
-    
-    def find_app_file(app_name)
-      # Sanitize app_name to prevent directory traversal
-      sanitized_name = app_name.gsub(/[^a-zA-Z0-9_]/, '')
-      
-      # Remove trailing "App" suffix if present (to handle both "Fastqc" and "FastqcApp")
-      base_name = sanitized_name.sub(/App$/, '')
-      
-      app_file = APPS_DIR.join("#{base_name}App.rb")
-      
-      return app_file if File.exist?(app_file)
-      
-      # Try case-insensitive search
-      Dir.glob(APPS_DIR.join('*App.rb')).find do |file|
-        File.basename(file, 'App.rb').downcase == base_name.downcase
-      end
-    end
-    
-    def load_and_extract_config(app_file, app_name)
-      # Load the app file
-      load app_file
-      
-      # Get the app class name (e.g., 'FastqcApp')
-      class_name = "#{File.basename(app_file, '.rb')}"
-      app_class = Object.const_get(class_name)
-      
+
+    def extract_config(app_class)
+      class_name = app_class.name
+
       # Create an instance to extract configuration
       instance = app_class.new
-      
+
       # Extract configuration
       {
         name: instance.name,
