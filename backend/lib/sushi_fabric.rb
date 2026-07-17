@@ -5,6 +5,12 @@
 require_relative 'global_variables'
 
 module SushiFabric
+  # Legacy compatibility constants. Some legacy apps (and backend/app/models/data_set.rb)
+  # reference SushiFabric::GSTORE_DIR / SushiFabric::SCRATCH_DIR directly. Resolve them
+  # from the same config source as the instance-level dirs.
+  GSTORE_DIR = SushiConfigHelper.gstore_dir unless defined?(GSTORE_DIR)
+  SCRATCH_DIR = SushiConfigHelper.scratch_dir unless defined?(SCRATCH_DIR)
+
   class SushiApp
     include GlobalVariables
     
@@ -27,6 +33,11 @@ module SushiFabric
       @required_columns = []
       @required_params = []
       @params = SushiParams.new
+      # Legacy SUSHI defaults process_mode to SAMPLE (one job per sample). Apps that
+      # want whole-dataset processing set @params['process_mode'] = 'DATASET' in their
+      # own initialize (after super). Matching this default is what lets SAMPLE-mode
+      # apps (which never set process_mode explicitly) fan out correctly.
+      @params['process_mode'] = 'SAMPLE'
       @modules = []
       @inherit_tags = []
       @inherit_columns = []
@@ -55,13 +66,13 @@ module SushiFabric
       return unless dataset_record
       
       @dataset_hash = dataset_record.samples.map { |sample| sample.to_hash }
-      # For DATASET mode, @dataset is the full array; for SAMPLE mode it's a single hash
-      if @params['process_mode'] == 'SAMPLE'
-        @dataset = @dataset_hash.first if @dataset_hash.any?
-      else
-        @dataset = @dataset_hash
-      end
-      
+      # Mirror legacy SushiApp#set_input_dataset: @dataset is the FULL array of sample
+      # hashes (tagged keys) in every mode. set_default_parameters runs against this
+      # array (e.g. @dataset[0]['refBuild']); in SAMPLE mode JobSubmissionService then
+      # reassigns @dataset to each cleaned single-sample hash before generating that
+      # sample's script and next_dataset.
+      @dataset = @dataset_hash
+
       # Create input dataset TSV file for R apps
       prepare_input_dataset_tsv(dataset_record)
     end

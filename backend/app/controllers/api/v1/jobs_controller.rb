@@ -38,6 +38,8 @@ module Api
         if service.submit
           render json: {
             job: serialize_job(service.job),
+            jobs: Array(service.jobs).map { |j| serialize_job(j) },
+            jobs_count: Array(service.jobs).size,
             output_dataset: {
               id: service.output_dataset.id,
               name: service.output_dataset.name

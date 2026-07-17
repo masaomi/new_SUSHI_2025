@@ -1,7 +1,7 @@
 # Service for handling job submission
 # Creates job scripts, registers datasets, and saves job records
 class JobSubmissionService
-  attr_reader :sushi_app, :input_dataset, :output_dataset, :job, :errors
+  attr_reader :sushi_app, :input_dataset, :output_dataset, :job, :jobs, :errors
 
   def initialize(dataset_id:, app_name:, parameters:, user:, next_dataset_name: nil, next_dataset_comment: nil)
     @dataset_id = dataset_id
@@ -23,20 +23,24 @@ class JobSubmissionService
     # Configure app with parameters
     configure_sushi_app
 
-    # Generate job script
-    script_path = generate_job_script
-    return false unless script_path
+    # Build job units: one per sample in SAMPLE mode (legacy fan-out), one for the
+    # whole dataset in DATASET/BATCH mode. Each unit is a written job script plus the
+    # next_dataset row it produces.
+    @job_units = build_job_units
+    return false if @job_units.nil? || @job_units.empty?
+
+    # Shared parameters.tsv for the job_manager (@params are identical across samples)
+    create_parameters_tsv
 
     # Copy scratch files to gstore (input_dataset.tsv, parameters.tsv, scripts)
     # This must happen BEFORE job execution so the job can access these files
     return false unless copy_scratch_to_gstore
 
-    # Create output dataset
-    return false unless create_output_dataset
+    # Create ONE output dataset holding every unit's next_dataset row
+    return false unless create_output_dataset(@job_units.map { |u| u[:next_dataset] })
 
-    # Save job record (with gstore script path)
-    gstore_script_path = File.join(@sushi_app.gstore_script_dir, File.basename(script_path))
-    return false unless create_job_record(gstore_script_path)
+    # Save one job record per unit (all pointing at the shared output dataset)
+    return false unless create_job_records(@job_units)
 
     true
   rescue StandardError => e
@@ -112,31 +116,59 @@ class JobSubmissionService
     end
   end
 
-  def generate_job_script
-    # Generate script content
+  # Build one job unit per sample (SAMPLE mode) or one for the whole dataset.
+  # Returns an array of { script_path:, next_dataset: } or nil on failure.
+  def build_job_units
+    mode = @sushi_app.params['process_mode'].to_s
+    mode = 'SAMPLE' if mode.empty? # legacy default
+
+    if mode == 'SAMPLE'
+      rows = Array(@sushi_app.dataset_hash)
+      if rows.empty?
+        @errors << 'No samples in input dataset for SAMPLE-mode app'
+        return nil
+      end
+      rows.each_with_index.map do |row, i|
+        # Per-sample: cleaned single-sample hash (tags stripped), as legacy sample_mode.
+        @sushi_app.dataset = clean_row(row)
+        @sushi_app.last_job = (i == rows.length - 1)
+        sample_name = @sushi_app.dataset['Name'] || "sample#{i + 1}"
+        build_unit(sample_name, i)
+      end
+    else
+      # DATASET / BATCH: @dataset stays the full array (set by set_input_dataset).
+      @sushi_app.last_job = true
+      [build_unit(nil, 0)]
+    end
+  rescue StandardError => e
+    @errors << "Failed to generate job scripts: #{e.message}"
+    Rails.logger.error("build_job_units error: #{e.message}\n#{e.backtrace.first(5).join("\n")}")
+    nil
+  end
+
+  # Write one job script for the app's current @dataset and capture its next_dataset row.
+  def build_unit(sample_name, index)
     script_content = @sushi_app.generate_job_script
 
-    # Create script file
-    timestamp = Time.now.strftime("%Y%m%d%H%M%S%L")
-    script_filename = "#{@app_name}_#{@dataset_id}_#{timestamp}.sh"
+    timestamp = Time.now.strftime('%Y%m%d%H%M%S%L')
+    parts = [@app_name, @dataset_id, sample_name, "#{timestamp}#{index}"].compact
+    script_filename = parts.join('_').gsub(/\s+/, '_') + '.sh'
     script_path = File.join(@sushi_app.job_script_dir, script_filename)
 
-    # Ensure directory exists
     FileUtils.mkdir_p(@sushi_app.job_script_dir)
-
-    # Write script
     File.write(script_path, script_content)
     FileUtils.chmod(0755, script_path)
 
-    # Create parameters.tsv for job_manager
-    # job_manager looks for parameters.tsv in parent of parent directory of script_path
-    create_parameters_tsv(script_path)
-
     Rails.logger.info("Generated job script: #{script_path}")
-    script_path
-  rescue StandardError => e
-    @errors << "Failed to generate job script: #{e.message}"
-    nil
+    { script_path: script_path, next_dataset: @sushi_app.next_dataset }
+  end
+
+  # Strip column-name tags (e.g. "Read1 [File]" -> "Read1"), as legacy SUSHI does
+  # per sample, so SAMPLE-mode apps can read @dataset['Read1'] / @dataset['Name'].
+  def clean_row(row)
+    row.each_with_object({}) do |(key, value), acc|
+      acc[key.to_s.gsub(/\[.+\]/, '').strip] = value
+    end
   end
 
   # Copy scratch directory to gstore before job submission
@@ -180,9 +212,10 @@ class JobSubmissionService
     true # Continue anyway, file may appear soon
   end
 
-  def create_parameters_tsv(script_path)
+  def create_parameters_tsv
     # job_manager expects parameters.tsv at: dirname(dirname(script_path))/parameters.tsv
-    # In scratch, this is scratch_result_dir/parameters.tsv
+    # In scratch, this is scratch_result_dir/parameters.tsv. @params are identical
+    # across samples, so a single shared parameters.tsv covers all per-sample scripts.
     parameters_file = File.join(@sushi_app.scratch_result_dir, 'parameters.tsv')
     
     # Write parameters as TSV
@@ -204,9 +237,12 @@ class JobSubmissionService
     # Don't fail the job submission if parameters.tsv creation fails
   end
 
-  def create_output_dataset
-    # Get next dataset definition from app
-    next_dataset_hash = @sushi_app.next_dataset
+  def create_output_dataset(next_datasets)
+    next_datasets = Array(next_datasets).compact
+    if next_datasets.empty?
+      @errors << 'No output rows produced by the application'
+      return false
+    end
 
     # Prepare dataset array for save_dataset_to_database
     dataset_name = @sushi_app.next_dataset_name
@@ -221,9 +257,10 @@ class JobSubmissionService
       'Comment', comment
     ]
 
-    # Convert next_dataset_hash to headers and rows
-    headers = next_dataset_hash.keys
-    rows = [next_dataset_hash.values]
+    # Headers from the first row; every row is projected onto that column order so a
+    # SAMPLE-mode dataset (one row per sample) is stored as N consistent rows.
+    headers = next_datasets.first.keys
+    rows = next_datasets.map { |nd| headers.map { |h| nd[h] } }
 
     # Save to database
     @output_dataset_id = DataSet.save_dataset_to_database(
@@ -265,26 +302,31 @@ class JobSubmissionService
     end
   end
 
-  def create_job_record(script_path)
-    # Determine gstore path for script
-    # In production, this would be copied to gstore, but for now we use the local path
-    gstore_script_path = script_path
+  # One Job record per unit. All share the single output dataset (next_dataset_id)
+  # and the input dataset; each carries its own gstore script path. #job stays the
+  # first record for backward-compatible callers; #jobs exposes them all.
+  def create_job_records(units)
+    @jobs = []
+    units.each do |unit|
+      gstore_script_path = File.join(@sushi_app.gstore_script_dir, File.basename(unit[:script_path]))
+      job = Job.new(
+        script_path: gstore_script_path,
+        next_dataset_id: @output_dataset_id,
+        input_dataset_id: @input_dataset.id,
+        status: 'CREATED',
+        user: @sushi_app.user
+      )
 
-    @job = Job.new(
-      script_path: gstore_script_path,
-      next_dataset_id: @output_dataset_id,
-      input_dataset_id: @input_dataset.id,
-      status: 'CREATED',
-      user: @sushi_app.user
-    )
-
-    if @job.save
-      Rails.logger.info("Created job record: #{@job.id}")
-      true
-    else
-      @errors << "Failed to save job: #{@job.errors.full_messages.join(', ')}"
-      false
+      unless job.save
+        @errors << "Failed to save job: #{job.errors.full_messages.join(', ')}"
+        return false
+      end
+      Rails.logger.info("Created job record: #{job.id}")
+      @jobs << job
     end
+
+    @job = @jobs.first
+    true
   rescue StandardError => e
     @errors << "Failed to create job record: #{e.message}"
     false
