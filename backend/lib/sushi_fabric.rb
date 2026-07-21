@@ -268,7 +268,27 @@ module SushiFabric
     def key?(key)
       @params.key?(key)
     end
-    
+
+    # Hash-compatible helpers some legacy apps call on @params directly.
+    def has_key?(key)
+      @params.key?(key)
+    end
+    alias include? has_key?
+
+    def values
+      @params.values
+    end
+
+    def empty?
+      @params.empty?
+    end
+
+    # Remove a param (and any metadata) — mirrors Hash#delete; returns the value.
+    def delete(key)
+      @metadata.delete(key)
+      @params.delete(key)
+    end
+
     def to_h
       @params.dup
     end

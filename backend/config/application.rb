@@ -50,10 +50,14 @@ module Backend
     config.legacy_apps_dir = ENV.fetch('LEGACY_APPS_DIR', '')
     # Allow-list of legacy app base names verified to run headless on the backend shim.
     # Only these legacy apps are exposed via the API; grows as apps are verified.
-    # Verified to generate job scripts headless on the backend shim (DATASET:
-    # FastqScreen/DESeq2; SAMPLE fan-out: STAR/FeatureCounts/CellRangerMulti).
+    # Verified to load & generate job scripts headless on the backend shim (Level-1).
+    # DATASET: FastqScreen, DESeq2, EdgeR, CountQC, Fastqc10x, FastqScreen10x,
+    #          RnaBamStats, Mpileup. SAMPLE fan-out: STAR, FeatureCounts, CellRangerMulti,
+    #          Kallisto, Bowtie2, BWA, ScSeurat, DnaBamStats.
     config.legacy_apps_allowlist =
-      ENV.fetch('LEGACY_APPS_ALLOWLIST', 'FastqScreen,DESeq2,STAR,FeatureCounts,CellRangerMulti')
+      ENV.fetch('LEGACY_APPS_ALLOWLIST',
+                'FastqScreen,DESeq2,EdgeR,CountQC,Fastqc10x,FastqScreen10x,RnaBamStats,Mpileup,' \
+                'STAR,FeatureCounts,CellRangerMulti,Kallisto,Bowtie2,BWA,ScSeurat,DnaBamStats')
          .split(',').map(&:strip).reject(&:empty?)
   end
 end
