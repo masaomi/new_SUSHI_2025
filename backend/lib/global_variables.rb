@@ -167,8 +167,14 @@ module GlobalVariables
   end
 
   def get_columns_with_tag(type)
+    # Match legacy SushiApp#get_columns_with_tag: return tag-matched columns with the
+    # tag STRIPPED from the key (e.g. "Genotype [Factor]" -> "Genotype"). extract_column
+    # re-adds the single " [type]" suffix; without stripping here the tag doubles
+    # ("Genotype [Factor] [Factor]") AND the SAMPLE-mode @dataset[colname] lookup misses
+    # (its keys are already tag-stripped), yielding nil values.
     result = (@dataset_hash||[{}]).map{|row|
-      row.select { |k, v| k =~ /\[#{type}\]/ }
+      Hash[ row.select { |k, _| k =~ /\[#{type}\]/ }
+               .map { |k, v| [k.gsub(/\[.+\]/,'').strip, v] } ]
     }
     # Ensure we always return at least [{}] to avoid nil.keys errors
     result.empty? ? [{}] : result
