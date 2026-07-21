@@ -13,11 +13,51 @@ RSpec.describe Middleware::SushiReadOnlyGuard do
     { 'REQUEST_METHOD' => method, 'PATH_INFO' => path }
   end
 
-  after { ENV.delete('SUSHI_READ_ONLY') }
+  after { ENV.delete('SUSHI_READ_ONLY'); ENV.delete('SUSHI_WRITE_POLICY') }
 
   context 'when SUSHI_READ_ONLY is unset' do
     it 'passes mutating requests through untouched' do
       expect(mw.call(env_for('POST', '/api/v1/jobs'))[0]).to eq 200
+    end
+  end
+
+  context 'when SUSHI_WRITE_POLICY=additive' do
+    before { ENV['SUSHI_WRITE_POLICY'] = 'additive' }
+
+    it 'allows safe (GET) requests' do
+      expect(mw.call(env_for('GET', '/api/v1/projects/35611/datasets'))[0]).to eq 200
+    end
+
+    it 'allows additive create-only routes (job submit, dataset import)' do
+      expect(mw.call(env_for('POST', '/api/v1/jobs'))[0]).to eq 200
+      expect(mw.call(env_for('POST', '/v1/datasets/register'))[0]).to eq 200
+      expect(mw.call(env_for('POST', '/api/v1/datasets/from_tsv'))[0]).to eq 200
+      expect(mw.call(env_for('POST', '/v1/datasets/validate'))[0]).to eq 200 # dry-run
+    end
+
+    it 'exempts the internal machine bridge (job_manager state updates)' do
+      expect(mw.call(env_for('PATCH', '/internal/legacy/jobs/1'))[0]).to eq 200
+      expect(mw.call(env_for('GET',   '/internal/legacy/jobs'))[0]).to eq 200
+    end
+
+    it 'blocks destructive/rewrite user ops with 403 additive' do
+      status, _h, body = mw.call(env_for('DELETE', '/v1/datasets/1'))
+      expect(status).to eq 403
+      expect(JSON.parse(body.join)['error']).to eq 'additive'
+      expect(mw.call(env_for('PUT', '/v1/datasets/1/bfabric-id'))[0]).to eq 403
+    end
+
+    it 'blocks a non-allowlisted mutating POST' do
+      expect(mw.call(env_for('POST', '/api/v1/datasets/1/rename'))[0]).to eq 403
+    end
+  end
+
+  context 'when SUSHI_WRITE_POLICY=read_only overrides' do
+    before { ENV['SUSHI_WRITE_POLICY'] = 'read_only' }
+
+    it 'blocks additive routes too (stricter than additive)' do
+      expect(mw.call(env_for('POST', '/api/v1/jobs'))[0]).to eq 403
+      expect(mw.call(env_for('PATCH', '/internal/legacy/jobs/1'))[0]).to eq 403
     end
   end
 
