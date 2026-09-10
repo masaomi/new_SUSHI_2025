@@ -129,7 +129,7 @@ def order_metadata(order_ids, env: str) -> dict[int, dict]:
     return out
 
 
-def report(by_order, meta) -> None:
+def report(by_order, meta, min_orders: int = 5) -> None:
     # ---- question 1: does chaining happen at all?
     depth_hist = Counter()
     for apps in by_order.values():
@@ -157,14 +157,25 @@ def report(by_order, meta) -> None:
     print("\n=== 2. Is the App sequence predictable from the service type? ===")
     print(f"{'service type':<44} {'orders':>7} {'distinct':>9} {'top-1':>7} {'top-3':>7}")
     rows = sorted(seq_by_st.items(), key=lambda kv: -sum(kv[1].values()))
+    shown = skipped = 0
     for st_name, seqs in rows:
         n = sum(seqs.values())
-        if n < 5:
+        if n < min_orders:
+            skipped += 1
             continue
+        shown += 1
         top = seqs.most_common(3)
         top1 = top[0][1] / n
         top3 = sum(c for _, c in top) / n
         print(f"{st_name[:43]:<44} {n:>7} {len(seqs):>9} {top1:>6.0%} {top3:>6.0%}")
+
+    if not shown:
+        print(f"  (nothing to show: all {skipped} service type(s) have fewer than "
+              f"{min_orders} orders. Not a failure -- lower --min-orders, or run this "
+              f"where the history actually lives.)")
+    elif skipped:
+        print(f"  ({skipped} further service type(s) had fewer than {min_orders} orders "
+              f"and are not shown)")
 
     print("\n=== the most common sequences overall ===")
     everything = Counter()
@@ -187,6 +198,8 @@ def main() -> int:
     ap.add_argument("--months", type=int, default=12)
     ap.add_argument("--tsv", default="/tmp/omakase_history.tsv")
     ap.add_argument("--env", default="PRODUCTION", choices=["PRODUCTION", "TEST"])
+    ap.add_argument("--min-orders", type=int, default=5,
+                    help="service types with fewer orders are not shown")
     args = ap.parse_args()
 
     if args.sql:
@@ -204,7 +217,7 @@ def main() -> int:
     print(f"{len(by_order)} orders with at least one downstream App", file=sys.stderr)
     meta = order_metadata(by_order.keys(), args.env)
     print(f"{len(meta)} of them resolved in B-Fabric", file=sys.stderr)
-    report(by_order, meta)
+    report(by_order, meta, args.min_orders)
     return 0
 
 
