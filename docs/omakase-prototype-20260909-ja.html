@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OMAKASE (Omics Metadata Automated Knowledge-based Analysis Suggestion &amp; Execution) システム プロトタイプ — 制御チェーン, 2026-09-09</title>
+<style>
+  :root{
+    --ink:#1c1f26; --muted:#5b6472; --line:#d4d9e0; --bg:#ffffff; --panel:#f7f9fc;
+    /* 青 = 構築済み・実測済み、橙 = 存在するが未検証・要対応、灰 = 実装予定、または既存のまま。
+       2026-08-21 レポートと同じ配色。 */
+    --ok:#2b74c9; --ok-d:#1a5aa8; --ok-l:#6fa3dd; --warn:#cf7a00; --neutral:#8a919c;
+    --ok-bg:#eaf2fb; --warn-bg:#fdf2e3; --neutral-bg:#f0f1f4;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Hiragino Sans",
+                "Yu Gothic","Noto Sans JP","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.85; font-size:15px;
+  }
+  .wrap{max-width:1060px;margin:0 auto;padding:44px 24px 96px}
+  header.top{border-bottom:3px solid var(--ink);padding-bottom:20px;margin-bottom:30px}
+  h1{font-size:25px;margin:0 0 6px;letter-spacing:.01em}
+  .sub{color:var(--muted);font-size:14px;margin:0}
+  .acro{margin:0 0 8px;font-size:13.5px;color:var(--muted);letter-spacing:.01em}
+  .acro b{color:var(--ink);font-weight:700}
+  .acro .prov{font-style:italic}
+  .meta{display:flex;gap:26px;flex-wrap:wrap;margin-top:14px;font-size:13px;color:var(--muted)}
+  .meta b{color:var(--ink);font-weight:600}
+  h2{font-size:20px;margin:50px 0 4px;padding-top:14px;border-top:1px solid var(--line)}
+  h2 .n{color:var(--muted);font-weight:400;margin-right:10px;font-variant-numeric:tabular-nums}
+  h3{font-size:16px;margin:28px 0 8px}
+  p{margin:10px 0}
+  .lead{font-size:15.5px;color:#2b3340;margin:6px 0 18px}
+  figure{margin:22px 0 8px;padding:0}
+  figcaption{font-size:12.5px;color:var(--muted);margin-top:8px}
+  svg{max-width:100%;height:auto;display:block}
+  .fig{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px}
+
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(212px,1fr));gap:12px;margin:22px 0 8px}
+  .kpi{border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:#fff}
+  .kpi .v{font-size:27px;font-weight:700;line-height:1.25;font-variant-numeric:tabular-nums}
+  .kpi .k{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .kpi.w .v{color:var(--warn)} .kpi.o .v{color:var(--ok-d)}
+
+  .legend{display:flex;gap:8px 20px;flex-wrap:wrap;font-size:12.5px;margin:12px 0 0}
+  .legend span{display:inline-flex;align-items:center;gap:7px}
+  .sw{width:14px;height:14px;border-radius:4px;flex:0 0 auto}
+  .sw.a{background:var(--ok-d)} .sw.b{background:var(--ok)} .sw.c{background:var(--ok-l)}
+  .sw.d{background:var(--neutral)} .sw.e{background:var(--warn)}
+
+  .stack{border:1px solid var(--line);border-radius:10px;overflow:hidden;margin:20px 0 8px}
+  .layer{display:grid;grid-template-columns:56px 1.25fr 1fr 132px;border-bottom:1px solid var(--line)}
+  .layer:last-child{border-bottom:0}
+  .layer .id{background:#eef1f6;font-weight:700;font-size:13px;display:flex;align-items:center;
+             justify-content:center;color:#3a4a63;border-right:1px solid var(--line)}
+  .layer .q{padding:10px 14px;font-size:14px}
+  .layer .who{padding:10px 14px;font-size:13px;color:var(--muted);border-left:1px dashed var(--line)}
+  .layer .st{padding:10px 12px;font-size:12px;font-weight:700;border-left:1px solid var(--line);
+             display:flex;align-items:center}
+  .layer.hd{background:#eef1f6}
+  .layer.hd .q,.layer.hd .who,.layer.hd .st{font-size:12px;color:#3a4a63;font-weight:700}
+  .st.run{background:var(--ok-bg);color:var(--ok-d)}
+  .st.plan{background:var(--neutral-bg);color:#43494f}
+  .st.todo{background:var(--warn-bg);color:#7a4900}
+
+  table{border-collapse:collapse;width:100%;margin:16px 0;font-size:13.5px}
+  th,td{border:1px solid var(--line);padding:7px 11px;text-align:left;vertical-align:top}
+  th{background:#eef1f6;font-weight:600}
+  td.r{text-align:right;font-variant-numeric:tabular-nums}
+  td.ok{background:var(--ok-bg);color:var(--ok-d);font-weight:600;text-align:center}
+  td.no{background:var(--warn-bg);color:#7a4900;font-weight:600;text-align:center}
+  caption{caption-side:top;text-align:left;font-size:12.5px;color:var(--muted);padding-bottom:6px}
+
+  .callout{border-left:4px solid var(--ok);background:var(--ok-bg);padding:12px 16px;
+           border-radius:0 8px 8px 0;margin:18px 0}
+  .callout.k{border-color:var(--warn);background:var(--warn-bg)}
+  .callout .t{font-weight:700;font-size:13.5px;line-height:1.8;margin-bottom:2px;color:var(--ink)}
+  .callout p{margin:4px 0;font-size:14px}
+
+  ul{margin:10px 0;padding-left:22px} li{margin:5px 0}
+  code{background:#eef1f5;padding:1px 6px;border-radius:4px;font-size:12.5px;
+       font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  pre{background:#1f2430;color:#e6e9ef;padding:14px 16px;border-radius:9px;overflow-x:auto;
+      font-size:12.5px;line-height:1.65;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  pre code{background:none;padding:0;color:inherit;font-size:12.5px}
+  footer{margin-top:60px;padding-top:18px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted)}
+  @media print{
+    body{font-size:11pt} .wrap{padding:0} h2{page-break-after:avoid}
+    figure,.fig,table,.stack,.kpis,pre{page-break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+
+<!-- 矢印マーカーは 0x0 の defs スプライトに一度だけ定義し、以降の svg から url(#ah) で参照する。 -->
+<svg width="0" height="0" aria-hidden="true" focusable="false"><defs>
+  <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="#5b6472"></path>
+  </marker>
+  <marker id="ahb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="#1a5aa8"></path>
+  </marker>
+  <marker id="ahw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="#cf7a00"></path>
+  </marker>
+  <marker id="ahn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="#8a919c"></path>
+  </marker>
+</defs></svg>
+
+<div class="wrap">
+
+<header class="top">
+  <h1>OMAKASE システム プロトタイプ — 制御チェーン</h1>
+  <p class="acro"><b>O</b>mics <b>M</b>etadata <b>A</b>utomated <b>K</b>nowledge-based
+     <b>A</b>nalysis <b>S</b>uggestion &amp; <b>E</b>xecution
+     <span class="prov">— 名称の暫定的な展開。オミクスのメタデータから、知識に基づいて解析を提案し、実行する</span></p>
+  <p class="sub">Web UI(または Claude Code)→ hermes-agent → vLLM + SUSHI-MCP-server → Omics-Studio バックエンド API → SLURM</p>
+  <div class="meta">
+    <span>作成 <b>2026-09-09</b></span>
+    <span>ノード <b>fgcz-h-083</b>(隔離されたテストDB)</span>
+    <span>投入ジョブ <b>4件</b>、操作面 <b>3種</b></span>
+    <span>本番への書き込み <b>ゼロ</b></span>
+    <span>次のユースケース <b>第7節</b>(未実装)</span>
+  </div>
+</header>
+
+<p class="lead">
+  本レポートは 2026-09-09 に構築し実測したプロトタイプの記録です。目的は狭く、最初に明示しておく
+  価値があります。<b>ブラウザに打ち込んだ依頼、あるいは Claude Code から出した依頼が、エージェント
+  ハーネスを経由して、計算クラスタ上で実際に走る解析ジョブとして終着すること</b>を、各段を推測では
+  なく実測で確認する——それだけです。完成した OMAKASE システムではありません。何を意図的に含めて
+  いないかは第 8 節に記します。<b>第 7 節だけは他の節と性質が違います。</b>2026-09-10 のミーティングで
+  合意したユースケースを述べたもので、その内容はいずれも未実装であり、着手を計画する前に答えを出す
+  べき 2 つの問いを明示しています。
+</p>
+
+<div class="kpis">
+  <div class="kpi o"><div class="v">4 / 4</div><div class="k">投入したジョブが SLURM に受理された件数</div></div>
+  <div class="kpi o"><div class="v">26 / 26</div><div class="k">操作面をまたいでバイト一致した結果ファイル</div></div>
+  <div class="kpi o"><div class="v">7.2 秒</div><div class="k">ハーネス経由で質問に answer が返るまで</div></div>
+  <div class="kpi w"><div class="v">1</div><div class="k">有効だが未実測の機能</div></div>
+</div>
+
+<h2><span class="n">1</span>チェーンの構成</h2>
+
+<p>
+  人間と計算ジョブの間には、現時点で 5 つの構成要素があります。いずれも本プロトタイプより前から、
+  それぞれの理由で存在していたものです。2026-09-09 の作業は、それらを 1 本の経路にまとめ、実測する
+  ことでした。図には、この実測に<b>含まれない</b>部分も灰色と橙色で描いてあります。1 日の作業結果
+  ではなく、これから作るシステムの姿として読めるようにするためです。
+</p>
+
+<figure>
+  <div class="fig">
+    <svg viewBox="0 0 1000 440" role="img" aria-labelledby="f1t">
+      <title id="f1t">制御チェーン — 実測済みの部分と、実装予定の部分</title>
+
+      <!-- control surfaces -->
+      <text x="91" y="84" font-size="12" font-weight="700" text-anchor="middle" fill="#3a4a63">操作する場所</text>
+
+      <rect x="16" y="96" width="150" height="52" rx="9" fill="#ffffff" stroke="#1a5aa8" stroke-width="1.6"></rect>
+      <text x="91" y="118" font-size="13.5" font-weight="700" text-anchor="middle" fill="#1c1f26">Web UI</text>
+      <text x="91" y="136" font-size="11" text-anchor="middle" fill="#5b6472">ポート8770・鍵必須</text>
+
+      <rect x="16" y="158" width="150" height="52" rx="9" fill="#ffffff" stroke="#1a5aa8" stroke-width="1.6"></rect>
+      <text x="91" y="180" font-size="13.5" font-weight="700" text-anchor="middle" fill="#1c1f26">Claude Code</text>
+      <text x="91" y="198" font-size="11" text-anchor="middle" fill="#5b6472">MCP(標準入出力)</text>
+
+      <rect x="16" y="220" width="150" height="52" rx="9" fill="#f7f8fa" stroke="#8a919c" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+      <text x="91" y="242" font-size="13.5" font-weight="700" text-anchor="middle" fill="#6b7280">Slack</text>
+      <text x="91" y="260" font-size="11" text-anchor="middle" fill="#8a919c">実装予定</text>
+
+      <rect x="16" y="282" width="150" height="52" rx="9" fill="#f7f8fa" stroke="#8a919c" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+      <text x="91" y="304" font-size="13.5" font-weight="700" text-anchor="middle" fill="#6b7280">Teams</text>
+      <text x="91" y="322" font-size="11" text-anchor="middle" fill="#8a919c">実装予定</text>
+
+      <!-- harness -->
+      <rect x="210" y="96" width="150" height="238" rx="9" fill="#eaf2fb" stroke="#1a5aa8" stroke-width="2.2"></rect>
+      <text x="285" y="170" font-size="14" font-weight="700" text-anchor="middle" fill="#1c1f26">hermes-agent</text>
+      <text x="285" y="189" font-size="11.5" text-anchor="middle" fill="#5b6472">ハーネス</text>
+      <text x="285" y="213" font-size="11.5" text-anchor="middle" fill="#5b6472">127.0.0.1:8642</text>
+      <text x="285" y="231" font-size="11.5" text-anchor="middle" fill="#5b6472">ベアラ必須</text>
+      <text x="285" y="253" font-size="11" text-anchor="middle" fill="#5b6472">何をするか決める</text>
+
+      <!-- reason lane: SAKE is planned and will take over the model call -->
+      <rect x="404" y="18" width="176" height="56" rx="9" fill="#f7f8fa" stroke="#8a919c" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+      <text x="492" y="41" font-size="13" font-weight="700" text-anchor="middle" fill="#6b7280">SAKE</text>
+      <text x="492" y="59" font-size="11" text-anchor="middle" fill="#8a919c">将来ここがモデル呼出を担う</text>
+
+      <rect x="404" y="96" width="176" height="62" rx="9" fill="#ffffff" stroke="#2b74c9" stroke-width="1.6"></rect>
+      <text x="492" y="118" font-size="13.5" font-weight="700" text-anchor="middle" fill="#1c1f26">vLLM</text>
+      <text x="492" y="135" font-size="11.5" text-anchor="middle" fill="#5b6472">オンプレのモデル</text>
+      <text x="492" y="150" font-size="10.5" text-anchor="middle" fill="#5b6472">fgcz-c-056:8000</text>
+
+      <!-- act lane -->
+      <rect x="404" y="186" width="176" height="62" rx="9" fill="#ffffff" stroke="#2b74c9" stroke-width="1.6"></rect>
+      <text x="492" y="208" font-size="12.5" font-weight="700" text-anchor="middle" fill="#1c1f26">SUSHI-MCP-server</text>
+      <text x="492" y="225" font-size="11.5" text-anchor="middle" fill="#5b6472">100個のツール</text>
+      <text x="492" y="240" font-size="10.5" text-anchor="middle" fill="#5b6472">知識と実行</text>
+
+      <rect x="632" y="186" width="158" height="62" rx="9" fill="#ffffff" stroke="#2b74c9" stroke-width="1.6"></rect>
+      <text x="711" y="208" font-size="13" font-weight="700" text-anchor="middle" fill="#1c1f26">Omics-Studio</text>
+      <text x="711" y="225" font-size="11.5" text-anchor="middle" fill="#5b6472">REST API・18アプリ</text>
+      <text x="711" y="240" font-size="10.5" text-anchor="middle" fill="#5b6472">083 ポート3010</text>
+
+      <rect x="838" y="186" width="146" height="62" rx="9" fill="#ffffff" stroke="#8a919c" stroke-width="1.6"></rect>
+      <text x="911" y="208" font-size="12.5" font-weight="700" text-anchor="middle" fill="#1c1f26">job_manager</text>
+      <text x="911" y="225" font-size="11.5" text-anchor="middle" fill="#5b6472">その後SLURM</text>
+      <text x="911" y="240" font-size="10.5" text-anchor="middle" fill="#5b6472">計算クラスタ</text>
+
+      <!-- B-Fabric is planned: the tool server has no B-Fabric tool today -->
+      <rect x="632" y="272" width="158" height="62" rx="9" fill="#f7f8fa" stroke="#8a919c" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+      <text x="711" y="294" font-size="13" font-weight="700" text-anchor="middle" fill="#6b7280">B-Fabric</text>
+      <text x="711" y="311" font-size="11" text-anchor="middle" fill="#8a919c">bfabricPy 経由</text>
+      <text x="711" y="326" font-size="10.5" text-anchor="middle" fill="#8a919c">オーダーと検体情報</text>
+
+      <!-- execution lane: amber, because this is switched on but never exercised -->
+      <rect x="404" y="272" width="176" height="62" rx="9" fill="#fdf2e3" stroke="#cf7a00" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+      <text x="492" y="294" font-size="13" font-weight="700" text-anchor="middle" fill="#1c1f26">Bash</text>
+      <text x="492" y="311" font-size="11" text-anchor="middle" fill="#8a5b00">Linuxコマンド</text>
+      <text x="492" y="326" font-size="10.5" text-anchor="middle" fill="#8a5b00">有効だが未実測</text>
+
+      <!-- arrows: control surfaces into the harness -->
+      <path d="M168,122 L204,150" stroke="#1a5aa8" stroke-width="1.8" fill="none" marker-end="url(#ahb)"></path>
+      <path d="M168,184 L204,192" stroke="#1a5aa8" stroke-width="1.8" fill="none" marker-end="url(#ahb)"></path>
+      <path d="M168,246 L204,238" stroke="#8a919c" stroke-width="1.6" stroke-dasharray="5 4" fill="none" marker-end="url(#ahn)"></path>
+      <path d="M168,308 L204,278" stroke="#8a919c" stroke-width="1.6" stroke-dasharray="5 4" fill="none" marker-end="url(#ahn)"></path>
+
+      <!-- arrows: out of the harness -->
+      <path d="M362,132 L398,58" stroke="#8a919c" stroke-width="1.6" stroke-dasharray="5 4" fill="none" marker-end="url(#ahn)"></path>
+      <path d="M492,74 L492,90" stroke="#8a919c" stroke-width="1.6" stroke-dasharray="5 4" fill="none" marker-end="url(#ahn)"></path>
+      <path d="M362,158 L398,130" stroke="#5b6472" stroke-width="1.6" fill="none" marker-end="url(#ah)" marker-start="url(#ah)"></path>
+      <path d="M362,217 L398,217" stroke="#5b6472" stroke-width="1.6" fill="none" marker-end="url(#ah)" marker-start="url(#ah)"></path>
+      <path d="M362,262 L398,296" stroke="#cf7a00" stroke-width="1.6" stroke-dasharray="5 4" fill="none" marker-end="url(#ahw)"></path>
+
+      <!-- arrows: right of the tool server -->
+      <path d="M580,217 L626,217" stroke="#5b6472" stroke-width="1.6" fill="none" marker-end="url(#ah)"></path>
+      <path d="M790,217 L832,217" stroke="#5b6472" stroke-width="1.6" fill="none" marker-end="url(#ah)"></path>
+      <path d="M580,240 L626,292" stroke="#8a919c" stroke-width="1.6" stroke-dasharray="5 4" fill="none" marker-end="url(#ahn)"></path>
+
+      <text x="381" y="180" font-size="10.5" text-anchor="middle" fill="#5b6472">推論</text>
+      <text x="381" y="209" font-size="10.5" text-anchor="middle" fill="#5b6472">実行</text>
+      <text x="381" y="252" font-size="10.5" text-anchor="middle" fill="#a06000">シェル</text>
+      <text x="603" y="209" font-size="10.5" text-anchor="middle" fill="#5b6472">HTTP</text>
+      <text x="811" y="209" font-size="10.5" text-anchor="middle" fill="#5b6472">監視</text>
+
+      <!-- legend: what the three visual states mean -->
+      <rect x="20" y="350" width="16" height="11" rx="3" fill="#eaf2fb" stroke="#1a5aa8" stroke-width="1.4"></rect>
+      <text x="44" y="360" font-size="11" fill="#43494f">構築し実測済み(2026-09-09)</text>
+      <rect x="300" y="350" width="16" height="11" rx="3" fill="#f7f8fa" stroke="#8a919c" stroke-width="1.4" stroke-dasharray="4 3"></rect>
+      <text x="324" y="360" font-size="11" fill="#43494f">実装予定 — まだ存在しない</text>
+      <rect x="610" y="350" width="16" height="11" rx="3" fill="#fdf2e3" stroke="#cf7a00" stroke-width="1.4" stroke-dasharray="4 3"></rect>
+      <text x="634" y="360" font-size="11" fill="#43494f">有効だが一度も実行していない</text>
+
+      <!-- footer band -->
+      <rect x="16" y="376" width="968" height="48" rx="8" fill="#f0f1f4" stroke="#d4d9e0" stroke-width="1"></rect>
+      <text x="34" y="397" font-size="11.5" fill="#43494f">判断するのはハーネスだけ。モデルは判断材料を、ツールサーバは実行能力を供給する。</text>
+      <text x="34" y="414" font-size="11.5" fill="#43494f">そして REST API が、実データと実ジョブに触れる唯一の扉である。</text>
+    </svg>
+  </div>
+  <figcaption>
+    図1 — チェーン全体。両端矢印は要求と応答、片矢印は一方向。実線の青は 2026-09-09 に構築して
+    実測した部分、破線の灰色は実装予定でまだ存在しない部分、破線の橙は有効だが一度も実行していない
+    部分です。この図の中で FGCZ ネットワークの外に出るものは一つもありません。
+  </figcaption>
+</figure>
+
+<p>
+  図の中で青以外の色にしてある要素が 4 つあります。実測に<b>含まれていない</b>という意味です。
+  それでも描いてあるのは、これから作るシステムの姿を示すためです。
+</p>
+
+<ul>
+  <li><b>Slack と Teams</b> — 同じハーネスに対する追加の操作面です。人がすでに会話している場所から
+      依頼を出せるようにする狙いですが、<b>実装予定</b>で、現在はどちらも接続されていません。</li>
+  <li><b>SAKE</b> — Omics-Studio 向けに構築中の FastAPI サービスです。現在はハーネスがモデルを直接
+      呼んでいますが、将来はこの呼び出しを SAKE に委譲します。そうするとモデルへの入口が
+      クライアントごとに増えず、1 か所に集約されます。本プロトタイプはこの移行に依存していません。</li>
+  <li><b>B-Fabric(bfabricPy 経由)</b> — B-Fabric は FGCZ のオーダーと検体の情報を持つデータベース、
+      bfabricPy はその Python クライアントです。ツールサーバには現在 B-Fabric 用のツールが 1 つも
+      ありません。つまりこの経路ではまだオーダーのメタデータを読めず、それを読むことこそが完成形の
+      OMAKASE の目的です。</li>
+  <li><b>Bash</b> — ホスト上の Linux コマンド実行です。ここだけ灰色ではなく橙色にしてあり、この違いは
+      実質的です。この機能はハーネスの設定で<b>すでに有効</b>で、サンドボックスもかかっていません。
+      ただ一度も実行していないだけです。本レポート冒頭の「有効だが未実測の機能 1 件」がこれです。</li>
+</ul>
+
+<div class="stack">
+  <div class="layer hd"><div class="id">#</div><div class="q">構成要素</div><div class="who">何を担うか</div><div class="st">状態</div></div>
+  <div class="layer">
+    <div class="id">1</div>
+    <div class="q"><b>操作面</b> — ポート 8770 の Web UI、または Claude Code</div>
+    <div class="who">人間が入力する場所。どちらも同じハーネスに届くので、どちらを使っても答えは変わりません。</div>
+    <div class="st run">実測済み</div>
+  </div>
+  <div class="layer">
+    <div class="id">2</div>
+    <div class="q"><b>hermes-agent</b> — ハーネス、<code>127.0.0.1:8642</code></div>
+    <div class="who">会話を保持し、どのツールを呼ぶか決め、セッションと記憶を持ち、定時実行もできます。</div>
+    <div class="st run">実測済み</div>
+  </div>
+  <div class="layer">
+    <div class="id">3</div>
+    <div class="q"><b>vLLM</b> — オンプレのモデル <code>DeepSeek-V4-Flash-DSpark</code></div>
+    <div class="who">判断を供給します。FGCZ 内で動くので、オーダのメタデータがネットワーク外に出ません。</div>
+    <div class="st run">実測済み</div>
+  </div>
+  <div class="layer">
+    <div class="id">4</div>
+    <div class="q"><b>SUSHI-MCP-server</b> — Model Context Protocol 上の 100 ツール</div>
+    <div class="who">意図を行動に変えます。知識ベースを読む、記録を残す、REST API を呼ぶ、のいずれか。</div>
+    <div class="st run">実測済み</div>
+  </div>
+  <div class="layer">
+    <div class="id">5</div>
+    <div class="q"><b>Omics-Studio バックエンド API</b> — <code>fgcz-h-083:3010</code></div>
+    <div class="who">データセットとジョブへの唯一の扉。鍵のプロジェクト範囲と書き込み方針を強制します。</div>
+    <div class="st run">実測済み</div>
+  </div>
+  <div class="layer">
+    <div class="id">6</div>
+    <div class="q"><b>job_manager と SLURM</b> — 既存の本番機構</div>
+    <div class="who">作られたジョブ行を拾い、クラスタへ投入し、依存関係を解決し、結果を gStore に書きます。</div>
+    <div class="st plan">未変更</div>
+  </div>
+</div>
+
+<p>
+  名称について一点。混乱の種なので明示します。製品名は <b>Omics-Studio</b> です。「New SUSHI」は
+  同じシステムの内部コード名にすぎず、層 5 の REST API は既存の Web 画面が使っているものと同一の
+  API です。
+</p>
+
+<h2><span class="n">2</span>ひとつの画面、ふたつの経路</h2>
+
+<p>
+  Web UI は 1 ターンを 2 つの経路のいずれかで送れます。画面のドロップダウンで選びます。両者はコスト
+  が等価ではないので、これを明示しておくことが重要です。等価であるかのように見せると、運用する人を
+  誤らせます。
+</p>
+
+<figure>
+  <div class="fig">
+    <svg viewBox="0 0 1000 300" role="img" aria-labelledby="f2t">
+      <title id="f2t">直結経路とハーネス経路を、ツールループの実行者で比較した図</title>
+
+      <rect x="16" y="118" width="132" height="58" rx="9" fill="#ffffff" stroke="#1a5aa8" stroke-width="1.6"></rect>
+      <text x="82" y="142" font-size="13" font-weight="700" text-anchor="middle" fill="#1c1f26">Web UI</text>
+      <text x="82" y="160" font-size="11" text-anchor="middle" fill="#5b6472">選択式</text>
+
+      <!-- 経路A -->
+      <rect x="220" y="28" width="740" height="104" rx="10" fill="#f7f9fc" stroke="#8a919c" stroke-width="1.4" stroke-dasharray="5 4"></rect>
+      <text x="238" y="50" font-size="12.5" font-weight="700" fill="#43494f">経路A — モデル直結</text>
+      <rect x="240" y="60" width="150" height="52" rx="8" fill="#ffffff" stroke="#2b74c9" stroke-width="1.5"></rect>
+      <text x="315" y="82" font-size="12" font-weight="700" text-anchor="middle" fill="#1c1f26">自前のループ</text>
+      <text x="315" y="99" font-size="10.5" text-anchor="middle" fill="#5b6472">約100行</text>
+      <rect x="440" y="60" width="140" height="52" rx="8" fill="#ffffff" stroke="#2b74c9" stroke-width="1.5"></rect>
+      <text x="510" y="82" font-size="12" font-weight="700" text-anchor="middle" fill="#1c1f26">vLLM</text>
+      <text x="510" y="99" font-size="10.5" text-anchor="middle" fill="#5b6472">16ツール表示</text>
+      <rect x="630" y="60" width="150" height="52" rx="8" fill="#ffffff" stroke="#2b74c9" stroke-width="1.5"></rect>
+      <text x="705" y="82" font-size="11.5" font-weight="700" text-anchor="middle" fill="#1c1f26">SUSHI-MCP-server</text>
+      <text x="705" y="99" font-size="10.5" text-anchor="middle" fill="#5b6472">残り84は検索で</text>
+      <text x="872" y="80" font-size="15" font-weight="700" text-anchor="middle" fill="#1a5aa8">1.3 秒</text>
+      <text x="872" y="100" font-size="11" text-anchor="middle" fill="#5b6472">2 900トークン</text>
+      <path d="M390,86 L434,86" stroke="#5b6472" stroke-width="1.5" fill="none" marker-end="url(#ah)"></path>
+      <path d="M580,86 L624,86" stroke="#5b6472" stroke-width="1.5" fill="none" marker-end="url(#ah)"></path>
+
+      <!-- 経路B -->
+      <rect x="220" y="152" width="740" height="104" rx="10" fill="#eaf2fb" stroke="#1a5aa8" stroke-width="2"></rect>
+      <text x="238" y="174" font-size="12.5" font-weight="700" fill="#1a5aa8">経路B — ハーネス経由(既定)</text>
+      <rect x="240" y="184" width="150" height="52" rx="8" fill="#ffffff" stroke="#1a5aa8" stroke-width="1.5"></rect>
+      <text x="315" y="206" font-size="12" font-weight="700" text-anchor="middle" fill="#1c1f26">素の中継</text>
+      <text x="315" y="223" font-size="10.5" text-anchor="middle" fill="#5b6472">ツール非添付</text>
+      <rect x="440" y="184" width="140" height="52" rx="8" fill="#ffffff" stroke="#1a5aa8" stroke-width="1.5"></rect>
+      <text x="510" y="206" font-size="12" font-weight="700" text-anchor="middle" fill="#1c1f26">hermes-agent</text>
+      <text x="510" y="223" font-size="10.5" text-anchor="middle" fill="#5b6472">自前のループ</text>
+      <rect x="630" y="184" width="150" height="52" rx="8" fill="#ffffff" stroke="#1a5aa8" stroke-width="1.5"></rect>
+      <text x="705" y="206" font-size="11.5" font-weight="700" text-anchor="middle" fill="#1c1f26">SUSHI-MCP-server</text>
+      <text x="705" y="223" font-size="10.5" text-anchor="middle" fill="#5b6472">専用の接続</text>
+      <text x="872" y="204" font-size="15" font-weight="700" text-anchor="middle" fill="#1a5aa8">7〜9 秒</text>
+      <text x="872" y="224" font-size="11" text-anchor="middle" fill="#5b6472">42 200トークン</text>
+      <path d="M390,210 L434,210" stroke="#1a5aa8" stroke-width="1.5" fill="none" marker-end="url(#ahb)"></path>
+      <path d="M580,210 L624,210" stroke="#1a5aa8" stroke-width="1.5" fill="none" marker-end="url(#ahb)"></path>
+
+      <path d="M148,138 L214,80" stroke="#8a919c" stroke-width="1.6" fill="none" marker-end="url(#ah)"></path>
+      <path d="M148,158 L214,204" stroke="#1a5aa8" stroke-width="2" fill="none" marker-end="url(#ahb)"></path>
+
+      <text x="180" y="286" font-size="11" fill="#5b6472">どちらも同じツールと同じREST APIに届く。違うのは費用と付加機能だけである。</text>
+    </svg>
+  </div>
+  <figcaption>
+    図2 — 経路A は約 5〜7 倍速く、1 ターンあたりのトークンは約 15 分の 1 です。それでも既定は経路B
+    です。理由は次に述べます。
+  </figcaption>
+</figure>
+
+<table>
+  <caption>2026-09-09、同一ノード・同一の質問で実測。</caption>
+  <tr>
+    <th>&nbsp;</th>
+    <th>経路A — 直結</th>
+    <th>経路B — ハーネス(既定)</th>
+  </tr>
+  <tr><td>ツールループの実行者</td><td>UI サーバ自身</td><td>hermes-agent</td></tr>
+  <tr><td>1 問あたりの時間</td><td class="r">1.3 秒</td><td class="r">7.2 秒</td></tr>
+  <tr><td>1 ターンのトークン</td><td class="r">約 2 900</td><td class="r">約 42 200</td></tr>
+  <tr><td>262 144 トークン文脈に占める割合</td><td class="r">1.1 %</td><td class="r">16 %</td></tr>
+  <tr><td>セッション・記憶・スキル</td><td class="no">なし</td><td class="ok">あり</td></tr>
+  <tr><td>OS の cron なしで定時実行</td><td class="no">なし</td><td class="ok">あり</td></tr>
+  <tr><td>UI 上でツール実行の履歴が見える</td><td class="ok">見える(inline)</td><td class="no">見えない — ハーネス側が保持</td></tr>
+</table>
+
+<div class="callout">
+  <div class="t">なぜ遅いほうを既定にしたのか</div>
+  <p>
+    OMAKASE で今後育てていく部分——セッション、記憶、スケジューリング、委譲——はすべてハーネスに
+    宿ります。もし単純な用事がハーネスを黙って迂回するなら、このプロトタイプが証明するのは「速い経路
+    が動く」ことだけになり、以後の機能はすべて未検証の土台の上に積まれます。そこで既定はすべてハー
+    ネス経由とし、速度が要る場面のために直結経路を選べるように残しました。
+  </p>
+</div>
+
+<h2><span class="n">3</span>ジョブを依頼したとき何が起きるか</h2>
+
+<p>
+  以下は実際に実行された順序です。例は既存の 2 サンプルのデータセットに対する品質管理の実行
+  (<code>Fastqc</code>)です。
+</p>
+
+<figure>
+  <div class="fig">
+    <svg viewBox="0 0 1000 430" role="img" aria-labelledby="f3t">
+      <title id="f3t">ハーネス経由で 1 件のジョブを投入するまでの順序</title>
+
+      <!-- レーン -->
+      <rect x="20" y="20" width="150" height="34" rx="7" fill="#eef1f6" stroke="#d4d9e0" stroke-width="1"></rect>
+      <text x="95" y="42" font-size="11.5" font-weight="700" text-anchor="middle" fill="#3a4a63">ブラウザ</text>
+      <rect x="182" y="20" width="150" height="34" rx="7" fill="#eef1f6" stroke="#d4d9e0" stroke-width="1"></rect>
+      <text x="257" y="42" font-size="11.5" font-weight="700" text-anchor="middle" fill="#3a4a63">Web UI 8770</text>
+      <rect x="344" y="20" width="150" height="34" rx="7" fill="#eaf2fb" stroke="#1a5aa8" stroke-width="1.4"></rect>
+      <text x="419" y="42" font-size="11.5" font-weight="700" text-anchor="middle" fill="#1a5aa8">hermes 8642</text>
+      <rect x="506" y="20" width="150" height="34" rx="7" fill="#eef1f6" stroke="#d4d9e0" stroke-width="1"></rect>
+      <text x="581" y="42" font-size="11.5" font-weight="700" text-anchor="middle" fill="#3a4a63">vLLM モデル</text>
+      <rect x="668" y="20" width="150" height="34" rx="7" fill="#eef1f6" stroke="#d4d9e0" stroke-width="1"></rect>
+      <text x="743" y="42" font-size="11" font-weight="700" text-anchor="middle" fill="#3a4a63">SUSHI-MCP-server</text>
+      <rect x="830" y="20" width="150" height="34" rx="7" fill="#eef1f6" stroke="#d4d9e0" stroke-width="1"></rect>
+      <text x="905" y="42" font-size="11" font-weight="700" text-anchor="middle" fill="#3a4a63">Omics-Studio 083</text>
+
+      <!-- ライフライン -->
+      <path d="M95,54 L95,392" stroke="#d4d9e0" stroke-width="1" stroke-dasharray="4 4"></path>
+      <path d="M257,54 L257,392" stroke="#d4d9e0" stroke-width="1" stroke-dasharray="4 4"></path>
+      <path d="M419,54 L419,392" stroke="#1a5aa8" stroke-width="1.2" stroke-dasharray="4 4"></path>
+      <path d="M581,54 L581,392" stroke="#d4d9e0" stroke-width="1" stroke-dasharray="4 4"></path>
+      <path d="M743,54 L743,392" stroke="#d4d9e0" stroke-width="1" stroke-dasharray="4 4"></path>
+      <path d="M905,54 L905,392" stroke="#d4d9e0" stroke-width="1" stroke-dasharray="4 4"></path>
+
+      <path d="M95,84 L251,84" stroke="#1a5aa8" stroke-width="1.7" fill="none" marker-end="url(#ahb)"></path>
+      <text x="100" y="78" font-size="10.5" fill="#1c1f26">1.「このデータでQCを実行」+ 鍵</text>
+
+      <path d="M257,118 L413,118" stroke="#1a5aa8" stroke-width="1.7" fill="none" marker-end="url(#ahb)"></path>
+      <text x="262" y="112" font-size="10.5" fill="#1c1f26">2. 文章のまま中継。ツールは添付しない</text>
+
+      <path d="M419,152 L575,152" stroke="#5b6472" stroke-width="1.5" fill="none" marker-end="url(#ah)"></path>
+      <text x="424" y="146" font-size="10.5" fill="#1c1f26">3. ツール定義を付けてモデルへ</text>
+
+      <path d="M575,186 L423,186" stroke="#5b6472" stroke-width="1.5" fill="none" marker-end="url(#ah)"></path>
+      <text x="430" y="180" font-size="10.5" fill="#1c1f26">4. モデルの返答:このツールをこの引数で</text>
+
+      <path d="M419,220 L737,220" stroke="#5b6472" stroke-width="1.5" fill="none" marker-end="url(#ah)"></path>
+      <text x="424" y="214" font-size="10.5" fill="#1c1f26">5. ツールを実行</text>
+
+      <path d="M743,254 L899,254" stroke="#cf7a00" stroke-width="1.9" fill="none" marker-end="url(#ahw)"></path>
+      <text x="600" y="248" font-size="10.5" fill="#7a4900">6. ジョブをPOST — 全工程で唯一の書き込み</text>
+
+      <path d="M899,288 L747,288" stroke="#5b6472" stroke-width="1.5" fill="none" marker-end="url(#ah)"></path>
+      <text x="700" y="282" font-size="10.5" fill="#1c1f26">7. ジョブID・出力データセットID</text>
+
+      <path d="M737,322 L423,322" stroke="#5b6472" stroke-width="1.5" fill="none" marker-end="url(#ah)"></path>
+      <text x="470" y="316" font-size="10.5" fill="#1c1f26">8. ツール結果をハーネスへ返す</text>
+
+      <path d="M413,356 L99,356" stroke="#1a5aa8" stroke-width="1.7" fill="none" marker-end="url(#ahb)"></path>
+      <text x="140" y="350" font-size="10.5" fill="#1c1f26">9. 依頼者へ一文で返答</text>
+
+      <rect x="20" y="398" width="960" height="24" rx="6" fill="#fdf2e3" stroke="#cf7a00" stroke-width="1"></rect>
+      <text x="34" y="414" font-size="11" fill="#7a4900">この後、この順序の外側で、常駐デーモンが新しいジョブ行を見つけてSLURMへ投入する。その機構は変更していない。</text>
+    </svg>
+  </div>
+  <figcaption>
+    図3 — モデルが複数のツールを必要とすれば、手順 3 から 8 は繰り返されます。書き込みが起きるのは
+    手順 6 の一点だけで、他はすべて読み取りかメッセージです。
+  </figcaption>
+</figure>
+
+<h3>同じ依頼を、コマンドで書くと</h3>
+
+<pre><code># Web UI の API 経由。ブラウザはこれと同じことをしている。
+curl -X POST http://fgcz-h-083.fgcz-net.unizh.ch:8770/api/chat \
+     -H "Authorization: Bearer $UI_TOKEN" \
+     -H 'Content-Type: application/json' \
+     -d '{"message": "dataset 9 に Fastqc ジョブを投入して",
+          "session": "demo", "upstream": "hermes"}'
+
+# その下でツール呼び出しが解決される先。本体が "job" 直下にネストする点に注意。
+POST /api/v1/jobs
+{"job": {"dataset_id": 9, "app_name": "Fastqc",
+         "parameters": {"cores": 1, "scratch": 10}}}</code></pre>
+
+<h2><span class="n">4</span>安全設計</h2>
+
+<p>
+  このチェーンは実際の計算を起動し、データベースに書き込めます。ですから「誤った場所でそれをしない
+  ようにしているのは何か」を明示する価値があります。独立した関門が 5 つあります。いずれも、突破を
+  試みることで検証しました。
+</p>
+
+<figure>
+  <div class="fig">
+    <svg viewBox="0 0 1000 390" role="img" aria-labelledby="f4t">
+      <title id="f4t">依頼からデータベース書き込みまでにある 5 つの独立した関門と、テストと本番の分離</title>
+
+      <text x="20" y="24" font-size="12.5" font-weight="700" fill="#3a4a63">5つの独立した関門</text>
+
+      <rect x="20" y="38" width="182" height="76" rx="9" fill="#ffffff" stroke="#1a5aa8" stroke-width="1.6"></rect>
+      <text x="111" y="60" font-size="12" font-weight="700" text-anchor="middle" fill="#1c1f26">1. UIの鍵</text>
+      <text x="111" y="78" font-size="10.5" text-anchor="middle" fill="#5b6472">43文字</text>
+      <text x="111" y="94" font-size="10.5" text-anchor="middle" fill="#5b6472">鍵が無ければ応答しない</text>
+      <text x="111" y="108" font-size="10.5" font-weight="700" text-anchor="middle" fill="#1a5aa8">実測:401</text>
+
+      <rect x="216" y="38" width="182" height="76" rx="9" fill="#ffffff" stroke="#1a5aa8" stroke-width="1.6"></rect>
+      <text x="307" y="60" font-size="12" font-weight="700" text-anchor="middle" fill="#1c1f26">2. ハーネスの鍵</text>
+      <text x="307" y="78" font-size="10.5" text-anchor="middle" fill="#5b6472">37文字</text>
+      <text x="307" y="94" font-size="10.5" text-anchor="middle" fill="#5b6472">ループバック限定</text>
+      <text x="307" y="108" font-size="10.5" font-weight="700" text-anchor="middle" fill="#1a5aa8">実測:401</text>
+
+      <rect x="412" y="38" width="182" height="76" rx="9" fill="#ffffff" stroke="#1a5aa8" stroke-width="1.6"></rect>
+      <text x="503" y="60" font-size="12" font-weight="700" text-anchor="middle" fill="#1c1f26">3. 接続先の登録</text>
+      <text x="503" y="78" font-size="10.5" text-anchor="middle" fill="#5b6472">書き込み可否を宣言</text>
+      <text x="503" y="94" font-size="10.5" text-anchor="middle" fill="#5b6472">鍵は名前で参照、値は持たない</text>
+      <text x="503" y="108" font-size="10.5" font-weight="700" text-anchor="middle" fill="#1a5aa8">本番:不可</text>
+
+      <rect x="608" y="38" width="182" height="76" rx="9" fill="#ffffff" stroke="#1a5aa8" stroke-width="1.6"></rect>
+      <text x="699" y="60" font-size="12" font-weight="700" text-anchor="middle" fill="#1c1f26">4. プロジェクト範囲</text>
+      <text x="699" y="78" font-size="10.5" text-anchor="middle" fill="#5b6472">鍵は1課題のみ参照</text>
+      <text x="699" y="94" font-size="10.5" text-anchor="middle" fill="#5b6472">範囲外は拒否</text>
+      <text x="699" y="108" font-size="10.5" font-weight="700" text-anchor="middle" fill="#1a5aa8">実測:403</text>
+
+      <rect x="804" y="38" width="176" height="76" rx="9" fill="#ffffff" stroke="#1a5aa8" stroke-width="1.6"></rect>
+      <text x="892" y="60" font-size="12" font-weight="700" text-anchor="middle" fill="#1c1f26">5. 書き込み方針</text>
+      <text x="892" y="78" font-size="10.5" text-anchor="middle" fill="#5b6472">読取専用/追加のみ/</text>
+      <text x="892" y="94" font-size="10.5" text-anchor="middle" fill="#5b6472">投入のみ</text>
+      <text x="892" y="108" font-size="10.5" font-weight="700" text-anchor="middle" fill="#1a5aa8">1〜4とは独立</text>
+
+      <path d="M202,76 L212,76" stroke="#5b6472" stroke-width="1.4" fill="none" marker-end="url(#ah)"></path>
+      <path d="M398,76 L408,76" stroke="#5b6472" stroke-width="1.4" fill="none" marker-end="url(#ah)"></path>
+      <path d="M594,76 L604,76" stroke="#5b6472" stroke-width="1.4" fill="none" marker-end="url(#ah)"></path>
+      <path d="M790,76 L800,76" stroke="#5b6472" stroke-width="1.4" fill="none" marker-end="url(#ah)"></path>
+
+      <text x="20" y="162" font-size="12.5" font-weight="700" fill="#3a4a63">2つの独立したデータベース — これが安全性の根拠</text>
+
+      <rect x="20" y="176" width="466" height="128" rx="10" fill="#eaf2fb" stroke="#1a5aa8" stroke-width="2"></rect>
+      <text x="253" y="202" font-size="14" font-weight="700" text-anchor="middle" fill="#1a5aa8">fgcz-h-083 — テスト</text>
+      <text x="253" y="224" font-size="11.5" text-anchor="middle" fill="#43494f">専用のデータベース。19課題、小規模。</text>
+      <text x="253" y="243" font-size="11.5" text-anchor="middle" fill="#43494f">書き込み可。ジョブは実際にクラスタで走る。</text>
+      <text x="253" y="262" font-size="11.5" text-anchor="middle" fill="#43494f">本レポートの全ジョブはここで実行。</text>
+      <text x="253" y="286" font-size="12" font-weight="700" text-anchor="middle" fill="#1a5aa8">本番を壊すことはできない</text>
+
+      <rect x="502" y="176" width="478" height="128" rx="10" fill="#f0f1f4" stroke="#8a919c" stroke-width="2" stroke-dasharray="6 4"></rect>
+      <text x="741" y="202" font-size="14" font-weight="700" text-anchor="middle" fill="#43494f">fgcz-h-082 — 本番</text>
+      <text x="741" y="224" font-size="11.5" text-anchor="middle" fill="#43494f">稼働中のDB。2 608課題、82 094データセット。</text>
+      <text x="741" y="243" font-size="11.5" text-anchor="middle" fill="#43494f">二重に拒否:ハーネスに鍵を渡しておらず、</text>
+      <text x="741" y="262" font-size="11.5" text-anchor="middle" fill="#43494f">登録側でも書き込みを禁じている。</text>
+      <text x="741" y="286" font-size="12" font-weight="700" text-anchor="middle" fill="#43494f">書き込みゼロ(終日)</text>
+
+      <rect x="20" y="320" width="960" height="52" rx="8" fill="#fdf2e3" stroke="#cf7a00" stroke-width="1.2"></rect>
+      <text x="36" y="340" font-size="11.5" font-weight="700" fill="#7a4900">意図して開けたままにしている唯一の危険</text>
+      <text x="36" y="358" font-size="11.5" fill="#7a4900">ハーネスはシェルコマンドを実行できる。だから関門1があり、鍵なしで公開しようとすると起動を拒否する。</text>
+    </svg>
+  </div>
+  <figcaption>
+    図4 — 関門 1 と 2 はアクセスを守り、関門 3・4・5 は認証を通った呼び出し元が「その後何をできるか」
+    を守ります。関門 5 は API 自身が強制するので、呼び出し元が正当に書き込み可能な資格を持っていても
+    効きます。
+  </figcaption>
+</figure>
+
+<h3>各関門をどう検証したか</h3>
+
+<table>
+  <tr><th>試したこと</th><th>期待</th><th>実測</th></tr>
+  <tr><td>鍵なしで UI を開く</td><td>拒否</td><td class="ok">401</td></tr>
+  <tr><td>誤った鍵で UI を開く</td><td>拒否</td><td class="ok">401</td></tr>
+  <tr><td>正しい鍵をヘッダで、また <code>?key=</code> で</td><td>許可</td><td class="ok">200</td></tr>
+  <tr><td>ベアラなしでハーネスを呼ぶ</td><td>拒否</td><td class="ok">401</td></tr>
+  <tr><td>鍵未設定のまま UI をネットワークへ公開</td><td>起動してはいけない</td><td class="ok">拒否・終了コード 2</td></tr>
+  <tr><td>本番ターゲットの資格状態をハーネスに尋ねる</td><td>不在</td><td class="ok">鍵なし・書き込み禁止</td></tr>
+</table>
+
+<div class="callout k">
+  <div class="t">この作業で見つかった不具合 — 一般的な罠なので記しておきます</div>
+  <p>
+    UI は 2 日間、誰も意図しないままネットワーク全体から到達可能でした。原因は「未設定に見える」設定
+    行——環境変数は存在するが値が空、というものです。コードは「この値、なければ安全な既定値」と書か
+    れていましたが、空文字もまた値なので既定値は適用されず、サーバは全インターフェースに bind して
+    いました。現在は空を未設定として扱います。このプロジェクトの設定読み出しは、同じ誤りがないか
+    確認すべきです。
+  </p>
+</div>
+
+<h2><span class="n">5</span>実際に何を走らせ、答えは一致したか</h2>
+
+<p>
+  3 種類の操作面から 4 件のジョブを投入しました。狙いは品質管理の結果そのものではなく、配管について
+  の問いです。<b>どの操作面を使うかで答えが変わらないか。</b>変わってはいけません。
+</p>
+
+<figure>
+  <div class="fig">
+    <svg viewBox="0 0 1000 350" role="img" aria-labelledby="f5t">
+      <title id="f5t">3 種類の操作面から投入した 4 件のジョブが同一の結果に収束する図</title>
+
+      <text x="20" y="24" font-size="12.5" font-weight="700" fill="#3a4a63">3つの入口</text>
+
+      <rect x="20" y="38" width="196" height="50" rx="8" fill="#ffffff" stroke="#1a5aa8" stroke-width="1.5"></rect>
+      <text x="118" y="58" font-size="12" font-weight="700" text-anchor="middle" fill="#1c1f26">Claude Code</text>
+      <text x="118" y="76" font-size="10.5" text-anchor="middle" fill="#5b6472">ジョブ803</text>
+
+      <rect x="20" y="100" width="196" height="50" rx="8" fill="#ffffff" stroke="#1a5aa8" stroke-width="1.5"></rect>
+      <text x="118" y="120" font-size="12" font-weight="700" text-anchor="middle" fill="#1c1f26">Web UI・直結ルート</text>
+      <text x="118" y="138" font-size="10.5" text-anchor="middle" fill="#5b6472">ジョブ804</text>
+
+      <rect x="20" y="162" width="196" height="50" rx="8" fill="#eaf2fb" stroke="#1a5aa8" stroke-width="2"></rect>
+      <text x="118" y="182" font-size="12" font-weight="700" text-anchor="middle" fill="#1a5aa8">ハーネス経由</text>
+      <text x="118" y="200" font-size="10.5" text-anchor="middle" fill="#5b6472">ジョブ805と806</text>
+
+      <path d="M216,63 L296,140" stroke="#5b6472" stroke-width="1.5" fill="none" marker-end="url(#ah)"></path>
+      <path d="M216,125 L296,140" stroke="#5b6472" stroke-width="1.5" fill="none" marker-end="url(#ah)"></path>
+      <path d="M216,187 L296,152" stroke="#1a5aa8" stroke-width="1.8" fill="none" marker-end="url(#ahb)"></path>
+
+      <rect x="302" y="112" width="180" height="72" rx="9" fill="#ffffff" stroke="#2b74c9" stroke-width="1.7"></rect>
+      <text x="392" y="136" font-size="12" font-weight="700" text-anchor="middle" fill="#1c1f26">同じREST API</text>
+      <text x="392" y="154" font-size="10.5" text-anchor="middle" fill="#5b6472">同じデータ・2サンプル</text>
+      <text x="392" y="170" font-size="10.5" text-anchor="middle" fill="#5b6472">同じパラメータ</text>
+
+      <path d="M482,148 L556,148" stroke="#5b6472" stroke-width="1.5" fill="none" marker-end="url(#ah)"></path>
+
+      <rect x="562" y="112" width="176" height="72" rx="9" fill="#ffffff" stroke="#8a919c" stroke-width="1.5"></rect>
+      <text x="650" y="136" font-size="12" font-weight="700" text-anchor="middle" fill="#1c1f26">計算クラスタ</text>
+      <text x="650" y="154" font-size="10.5" text-anchor="middle" fill="#5b6472">約5〜7分</text>
+      <text x="650" y="170" font-size="10.5" text-anchor="middle" fill="#5b6472">実際の計算・実ファイル</text>
+
+      <path d="M738,148 L806,148" stroke="#5b6472" stroke-width="1.5" fill="none" marker-end="url(#ah)"></path>
+
+      <rect x="812" y="104" width="168" height="88" rx="9" fill="#eaf2fb" stroke="#1a5aa8" stroke-width="2"></rect>
+      <text x="896" y="128" font-size="12" font-weight="700" text-anchor="middle" fill="#1a5aa8">出力は同一</text>
+      <text x="896" y="147" font-size="10.5" text-anchor="middle" fill="#43494f">各31ファイル・4.3 MB</text>
+      <text x="896" y="164" font-size="10.5" text-anchor="middle" fill="#43494f">26件中26件が</text>
+      <text x="896" y="181" font-size="10.5" text-anchor="middle" fill="#43494f">バイト単位で一致</text>
+
+      <rect x="20" y="216" width="960" height="118" rx="9" fill="#f7f9fc" stroke="#d4d9e0" stroke-width="1"></rect>
+      <text x="36" y="238" font-size="12" font-weight="700" fill="#3a4a63">差はこれだけ、そしてすべて想定内</text>
+      <text x="36" y="260" font-size="11.5" fill="#43494f">• 出力フォルダ名(実行日時を含む) — 1ファイルの1行だけ</text>
+      <text x="36" y="280" font-size="11.5" fill="#43494f">• アーカイブ内と要約レポート内に記録された時刻</text>
+      <text x="36" y="300" font-size="11.5" fill="#43494f">• スクリプト名と2つのクラスタログ(ジョブ番号を含む)</text>
+      <text x="36" y="322" font-size="11.5" font-weight="700" fill="#1a5aa8">研究者が読む内容に差は無い。配管は交換可能である。</text>
+    </svg>
+  </div>
+  <figcaption>
+    図5 — 4 件の投入、1 つの結果。比較は圧縮アーカイブの<em>中身</em>に対して行いました。アーカイブ
+    自体は各ファイルの書き込み時刻を記録するため、2 回の実行間でバイト一致することは原理的にあり
+    得ないからです。
+  </figcaption>
+</figure>
+
+<table>
+  <caption>4 件の投入。後から参照できるようクラスタのジョブ番号も記載します。</caption>
+  <tr><th>ジョブ</th><th>投入元</th><th>経路</th><th>クラスタでの結果</th></tr>
+  <tr><td>803</td><td>Claude Code</td><td>ツール呼び出し、モデル非経由</td><td class="ok">完了</td></tr>
+  <tr><td>804</td><td>Web UI</td><td>モデル直結</td><td class="ok">完了</td></tr>
+  <tr><td>805</td><td>コマンドライン</td><td>ハーネス</td><td class="ok">完了</td></tr>
+  <tr><td>806</td><td>Web UI</td><td>ハーネス — 全経路</td><td class="ok">受理され実行</td></tr>
+</table>
+
+<div class="callout k">
+  <div class="t">このテストノード特有の紛らわしい挙動 — チェーンの不具合ではありません</div>
+  <p>
+    fgcz-h-083 では常駐ジョブデーモンが 2 つ動いているため、どのジョブもクラスタへ 2〜3 回投入され
+    ます。成功するのはちょうど 1 つで、残りは出力フォルダが既に存在するため停止します。したがって
+    ジョブ行が<em>失敗</em>と表示されていても、結果は完全で正しいことがあります。実行の判定は、
+    クラスタの課金記録と出力フォルダで行ってください。行の表示だけで判断してはいけません。これは
+    テストノードの既知の状態で、本番には存在しません。
+  </p>
+</div>
+
+<h2><span class="n">6</span>運用方法</h2>
+
+<p>
+  常駐する 2 つの部品は、いずれも切り離した端末セッションに入れてあります。起動した人がログアウト
+  しても生き続けます。まだ OS のサービスにはしていません。プロトタイプとして意図的にそうしています。
+</p>
+
+<figure>
+  <div class="fig">
+    <svg viewBox="0 0 1000 300" role="img" aria-labelledby="f6t">
+      <title id="f6t">何がどこで、どのポートで動いているか、そしてどこまでが既存部分か</title>
+
+      <text x="20" y="24" font-size="12.5" font-weight="700" fill="#3a4a63">fgcz-h-083 上で稼働</text>
+
+      <rect x="20" y="38" width="300" height="100" rx="9" fill="#eaf2fb" stroke="#1a5aa8" stroke-width="2"></rect>
+      <text x="170" y="62" font-size="13" font-weight="700" text-anchor="middle" fill="#1a5aa8">本プロトタイプで新設</text>
+      <text x="36" y="86" font-size="11.5" fill="#43494f">Web UI — ポート8770、ネットワーク公開、</text>
+      <text x="36" y="104" font-size="11.5" fill="#43494f">鍵必須。セッション名 kairos-agent</text>
+      <text x="36" y="126" font-size="11.5" fill="#43494f">ハーネス — ポート8642、ループバック、鍵必須</text>
+
+      <rect x="336" y="38" width="300" height="100" rx="9" fill="#f7f9fc" stroke="#8a919c" stroke-width="1.5"></rect>
+      <text x="486" y="62" font-size="13" font-weight="700" text-anchor="middle" fill="#43494f">既存のもの</text>
+      <text x="352" y="86" font-size="11.5" fill="#43494f">Omics-Studio REST API — ポート3010</text>
+      <text x="352" y="104" font-size="11.5" fill="#43494f">Omics-Studio 画面 — ポート4000</text>
+      <text x="352" y="126" font-size="11.5" fill="#43494f">ジョブ監視デーモン、その先のクラスタ</text>
+
+      <rect x="652" y="38" width="328" height="100" rx="9" fill="#f7f9fc" stroke="#8a919c" stroke-width="1.5"></rect>
+      <text x="816" y="62" font-size="13" font-weight="700" text-anchor="middle" fill="#43494f">ネットワーク上の別の場所</text>
+      <text x="668" y="86" font-size="11.5" fill="#43494f">オンプレのモデルサーバ fgcz-c-056</text>
+      <text x="668" y="104" font-size="11.5" fill="#43494f">gStore — 結果の公開先</text>
+      <text x="668" y="126" font-size="11.5" fill="#43494f">計算クラスタ本体</text>
+
+      <rect x="20" y="156" width="960" height="60" rx="9" fill="#ffffff" stroke="#d4d9e0" stroke-width="1"></rect>
+      <text x="36" y="178" font-size="12" font-weight="700" fill="#3a4a63">入り方</text>
+      <text x="36" y="200" font-size="11.5" fill="#43494f">Web UI のアドレスに鍵を付けて開く。鍵はそのブラウザのセッションの間だけ記憶される。</text>
+
+      <rect x="20" y="232" width="960" height="52" rx="9" fill="#fdf2e3" stroke="#cf7a00" stroke-width="1.2"></rect>
+      <text x="36" y="254" font-size="12" font-weight="700" fill="#7a4900">未着手</text>
+      <text x="36" y="273" font-size="11.5" fill="#7a4900">再起動後の自動復帰なし、ログ回転なし、長時間動くツールサーバのメモリ上限なし。次節を参照。</text>
+    </svg>
+  </div>
+  <figcaption>
+    図6 — 青い 2 つだけが本作業で作ったものです。それ以外はすべて既存のインフラで、置き換えるのでは
+    なく再利用しています。
+  </figcaption>
+</figure>
+
+<pre><code># ハーネスの起動・再起動
+screen -S hermes-gateway -X quit
+screen -dmS hermes-gateway -L -Logfile /tmp/hermes_gateway_8642.screenlog \
+       bash /srv/sushi/kairos_agent_server_dev/run_hermes_gateway.sh
+
+# Web UI の起動・再起動
+screen -S kairos-agent -X quit
+cd /srv/sushi/kairos_agent_server_dev
+screen -dmS kairos-agent -L -Logfile /tmp/kairos_agent_8770.screenlog bash run.sh
+
+# 全体が健全か。両経路とツールサーバの状態を1回の呼び出しで報告する。
+curl -H "Authorization: Bearer $UI_TOKEN" http://127.0.0.1:8770/api/health</code></pre>
+
+<h2><span class="n">7</span>次に実現するユースケース</h2>
+
+<p>
+  2026-09-10 のミーティングで次の目標が決まりました。<b>この節の内容はいずれも未実装です。</b>
+  計画を立てる前に作業の形を見えるようにするため、そして残りを見積もる前に答えを出さなければ
+  ならない問いが 2 つあるため、ここに書き留めます。
+</p>
+
+<p>
+  出発点は、すでに毎日起きている出来事です。あるオーダーの品質確認が終わると、担当者が B-Fabric
+  ——オーダーと検体の情報を持つ FGCZ のデータベース——を開き、そのオーダーの状態を
+  <code>processed</code> に変更します。現在、この変更に反応するものは何もありません。
+  これに OMAKASE が反応する、というのが今回のユースケースです。
+</p>
+
+<figure>
+  <div class="fig">
+    <svg viewBox="0 0 1000 390" role="img" aria-labelledby="f7t">
+      <title id="f7t">完了したオーダーから、パイプラインが走り出すまで。未解決の2つの関門を明示</title>
+
+      <text x="16" y="34" font-size="12" font-weight="700" fill="#3a4a63">完了したオーダーから、パイプラインが走り出すまで</text>
+
+      <!-- step 1: happens today, in B-Fabric -->
+      <rect x="16" y="64" width="136" height="76" rx="9" fill="#ffffff" stroke="#1a5aa8" stroke-width="1.6"></rect>
+      <text x="84" y="88" font-size="12.5" font-weight="700" text-anchor="middle" fill="#1c1f26">B-Fabric のオーダー</text>
+      <text x="84" y="106" font-size="10.5" text-anchor="middle" fill="#5b6472">状態を "processed" に</text>
+      <text x="84" y="122" font-size="10.5" text-anchor="middle" fill="#5b6472">人が手で変更する</text>
+
+      <!-- step 2: OPEN QUESTION -->
+      <rect x="180" y="64" width="136" height="76" rx="9" fill="#fdf2e3" stroke="#cf7a00" stroke-width="1.6" stroke-dasharray="5 4"></rect>
+      <text x="248" y="88" font-size="12.5" font-weight="700" text-anchor="middle" fill="#1c1f26">1  検知</text>
+      <text x="248" y="106" font-size="10.5" text-anchor="middle" fill="#8a5b00">取りに行く? 通知を受ける?</text>
+      <text x="248" y="122" font-size="10.5" font-weight="700" text-anchor="middle" fill="#a06000">未調査</text>
+
+      <rect x="344" y="64" width="136" height="76" rx="9" fill="#f7f8fa" stroke="#8a919c" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+      <text x="412" y="88" font-size="12.5" font-weight="700" text-anchor="middle" fill="#6b7280">パイプライン選択</text>
+      <text x="412" y="106" font-size="10.5" text-anchor="middle" fill="#8a919c">オーダーのメタ情報から</text>
+      <text x="412" y="122" font-size="10.5" text-anchor="middle" fill="#8a919c">既存アプリのみ</text>
+
+      <rect x="508" y="64" width="136" height="76" rx="9" fill="#f7f8fa" stroke="#8a919c" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+      <text x="576" y="88" font-size="12.5" font-weight="700" text-anchor="middle" fill="#6b7280">提案</text>
+      <text x="576" y="106" font-size="10.5" text-anchor="middle" fill="#8a919c">バイオインフォマティシャンへ</text>
+      <text x="576" y="122" font-size="10.5" text-anchor="middle" fill="#8a919c">根拠を添えて</text>
+
+      <!-- step 5: the human gate -->
+      <rect x="672" y="64" width="136" height="76" rx="9" fill="#eaf2fb" stroke="#1a5aa8" stroke-width="2" stroke-dasharray="5 4"></rect>
+      <text x="740" y="88" font-size="12.5" font-weight="700" text-anchor="middle" fill="#1c1f26">承認</text>
+      <text x="740" y="106" font-size="10.5" text-anchor="middle" fill="#1a5aa8">人による関門</text>
+      <text x="740" y="122" font-size="10.5" font-weight="700" text-anchor="middle" fill="#1a5aa8">これ以前は何も動かない</text>
+
+      <rect x="836" y="64" width="136" height="76" rx="9" fill="#f7f8fa" stroke="#8a919c" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+      <text x="904" y="88" font-size="12.5" font-weight="700" text-anchor="middle" fill="#6b7280">実行と管理</text>
+      <text x="904" y="106" font-size="10.5" text-anchor="middle" fill="#8a919c">アプリ連鎖の全体</text>
+      <text x="904" y="122" font-size="10.5" font-weight="700" text-anchor="middle" fill="#6b7280">SUSHI で初</text>
+
+      <path d="M154,102 L174,102" stroke="#5b6472" stroke-width="1.6" fill="none" marker-end="url(#ah)"></path>
+      <path d="M318,102 L338,102" stroke="#5b6472" stroke-width="1.6" fill="none" marker-end="url(#ah)"></path>
+      <path d="M482,102 L502,102" stroke="#5b6472" stroke-width="1.6" fill="none" marker-end="url(#ah)"></path>
+      <path d="M646,102 L666,102" stroke="#5b6472" stroke-width="1.6" fill="none" marker-end="url(#ah)"></path>
+      <path d="M810,102 L830,102" stroke="#5b6472" stroke-width="1.6" fill="none" marker-end="url(#ah)"></path>
+
+      <!-- the second open question sits under the chain -->
+      <path d="M904,142 L904,176 L576,176 L576,222" stroke="#8a919c" stroke-width="1.6" stroke-dasharray="5 4" fill="none" marker-end="url(#ahn)"></path>
+
+      <rect x="508" y="228" width="136" height="76" rx="9" fill="#fdf2e3" stroke="#cf7a00" stroke-width="1.6" stroke-dasharray="5 4"></rect>
+      <text x="576" y="252" font-size="12.5" font-weight="700" text-anchor="middle" fill="#1c1f26">2  終わったか?</text>
+      <text x="576" y="270" font-size="10.5" text-anchor="middle" fill="#8a5b00">通知式? 監視式?</text>
+      <text x="576" y="286" font-size="10.5" font-weight="700" text-anchor="middle" fill="#a06000">未調査</text>
+
+      <rect x="700" y="196" width="160" height="58" rx="9" fill="#f7f8fa" stroke="#8a919c" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+      <text x="780" y="218" font-size="12" font-weight="700" text-anchor="middle" fill="#6b7280">再投入</text>
+      <text x="780" y="236" font-size="10.5" text-anchor="middle" fill="#8a919c">原因が一時的なものなら</text>
+
+      <rect x="700" y="276" width="160" height="58" rx="9" fill="#f7f8fa" stroke="#8a919c" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+      <text x="780" y="298" font-size="12" font-weight="700" text-anchor="middle" fill="#6b7280">停止して通知</text>
+      <text x="780" y="316" font-size="10.5" text-anchor="middle" fill="#8a919c">それ以外なら</text>
+
+      <path d="M646,262 L694,232" stroke="#8a919c" stroke-width="1.6" stroke-dasharray="5 4" fill="none" marker-end="url(#ahn)"></path>
+      <path d="M646,278 L694,300" stroke="#8a919c" stroke-width="1.6" stroke-dasharray="5 4" fill="none" marker-end="url(#ahn)"></path>
+
+      <text x="576" y="326" font-size="10.5" text-anchor="middle" fill="#5b6472">成功したら次のアプリへ進む</text>
+
+      <rect x="20" y="356" width="16" height="11" rx="3" fill="#eaf2fb" stroke="#1a5aa8" stroke-width="1.4"></rect>
+      <text x="44" y="366" font-size="11" fill="#43494f">現在すでに存在する</text>
+      <rect x="300" y="356" width="16" height="11" rx="3" fill="#f7f8fa" stroke="#8a919c" stroke-width="1.4" stroke-dasharray="4 3"></rect>
+      <text x="324" y="366" font-size="11" fill="#43494f">未実装、作り方は見えている</text>
+      <rect x="610" y="356" width="16" height="11" rx="3" fill="#fdf2e3" stroke="#cf7a00" stroke-width="1.4" stroke-dasharray="4 3"></rect>
+      <text x="634" y="366" font-size="11" fill="#43494f">先に答えが必要</text>
+    </svg>
+  </div>
+  <figcaption>
+    図7 &mdash; 2026-09-10 に合意したユースケース。実線の青は現在すでに起きていること、破線の灰色は未実装だが作り方は見えているもの、破線の橙は残りを計画する前に答えが必要な 2 つの問いです。
+  </figcaption>
+</figure>
+
+<div class="stack">
+  <div class="layer hd"><div class="id">#</div><div class="q">段階</div><div class="who">実際には何を意味するか</div><div class="st">状態</div></div>
+  <div class="layer">
+    <div class="id">1</div>
+    <div class="q"><b>完了したオーダーが見えるようになる</b></div>
+    <div class="who">OMAKASE が一定間隔で B-Fabric に「<code>processed</code> になったものはあるか」と尋ねるか、B-Fabric 側が変化を OMAKASE に伝えるかのどちらかです。どちらが可能かが 1 つ目の未解決の問いです。</div>
+    <div class="st todo">問い 1</div>
+  </div>
+  <div class="layer">
+    <div class="id">2</div>
+    <div class="q"><b>オーダーのメタ情報からパイプラインを選ぶ</b></div>
+    <div class="who">生物種、ライブラリの種類、シーケンスの用途から、どのアプリが該当するかが決まります。<b>OMAKASE はアプリを自作しません。</b>既存のカタログから選び、順序を付けるだけです。</div>
+    <div class="st todo">未着手</div>
+  </div>
+  <div class="layer">
+    <div class="id">3</div>
+    <div class="q"><b>連鎖をバイオインフォマティシャンに提案する</b></div>
+    <div class="who">実行ではなく提案です。どのアプリを、どの順で、どのパラメータで、なぜそれを選んだのか。受け入れ・修正・却下のいずれもできます。</div>
+    <div class="st todo">未着手</div>
+  </div>
+  <div class="layer">
+    <div class="id">4</div>
+    <div class="q"><b>承認され、そこで初めて投入する</b></div>
+    <div class="who">人が承認するまで何も投入されません。この関門があるからこそ、実データに近づけてよいと言えます。</div>
+    <div class="st plan">設計どおり</div>
+  </div>
+  <div class="layer">
+    <div class="id">5</div>
+    <div class="q"><b>OMAKASE が連鎖を最後まで管理する</b></div>
+    <div class="who">各アプリを、入力が揃った時点で投入し、それぞれの結果を確認します。<b>ここが既存の SUSHI では実現できていなかった部分です。</b></div>
+    <div class="st todo">未着手</div>
+  </div>
+  <div class="layer">
+    <div class="id">6</div>
+    <div class="q"><b>失敗を報告するだけでなく、判断する</b></div>
+    <div class="who">一時的な理由——メモリ不足が典型です——で失敗したなら再投入します。それ以外の理由なら連鎖を止めて人に通知します。この 2 つをどう見分けるかが 2 つ目の未解決の問いです。</div>
+    <div class="st todo">問い 2</div>
+  </div>
+</div>
+
+<h3>ここで本当に新しいのは何か</h3>
+
+<p>
+  既存の SUSHI は<b>アプリを 1 つずつ</b>実行します。人が選んで起動し、待って、結果を見て、次を
+  起動します。今回のミーティングで求められたのは、<b>アプリの連鎖を一つのまとまりとして提案し、
+  システムが最後まで運ぶこと</b>です。この組み合わせの段階こそ既存の SUSHI が持たなかった能力で、
+  スクリプトを書くのではなく作る価値がある理由です。
+</p>
+
+<figure>
+  <div class="fig">
+    <svg viewBox="0 0 1000 370" role="img" aria-labelledby="f8t">
+      <title id="f8t">RNA-seq データセットに対して提案されるアプリ連鎖の一例</title>
+
+      <rect x="16" y="100" width="120" height="64" rx="9" fill="#ffffff" stroke="#2b74c9" stroke-width="1.6"></rect>
+      <text x="76" y="126" font-size="12.5" font-weight="700" text-anchor="middle" fill="#1c1f26">RNA-seq データセット</text>
+      <text x="76" y="144" font-size="10.5" text-anchor="middle" fill="#5b6472">完了したオーダー</text>
+
+      <rect x="180" y="20" width="150" height="52" rx="9" fill="#f7f8fa" stroke="#8a919c" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+      <text x="255" y="42" font-size="12.5" font-weight="700" text-anchor="middle" fill="#6b7280">FastQCApp</text>
+      <text x="255" y="60" font-size="10.5" text-anchor="middle" fill="#8a919c">リードの品質</text>
+
+      <rect x="180" y="88" width="150" height="52" rx="9" fill="#f7f8fa" stroke="#8a919c" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+      <text x="255" y="110" font-size="12.5" font-weight="700" text-anchor="middle" fill="#6b7280">FastqScreenApp</text>
+      <text x="255" y="128" font-size="10.5" text-anchor="middle" fill="#8a919c">コンタミの確認</text>
+
+      <rect x="180" y="156" width="150" height="76" rx="9" fill="#f7f8fa" stroke="#8a919c" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+      <text x="255" y="180" font-size="12.5" font-weight="700" text-anchor="middle" fill="#6b7280">STARApp</text>
+      <text x="255" y="198" font-size="10.5" text-anchor="middle" fill="#8a919c">アライメント</text>
+      <text x="255" y="216" font-size="10.5" font-weight="700" text-anchor="middle" fill="#a06000">参照ゲノムをメタ情報から選択</text>
+
+      <rect x="396" y="168" width="160" height="56" rx="9" fill="#f7f8fa" stroke="#8a919c" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+      <text x="476" y="192" font-size="12.5" font-weight="700" text-anchor="middle" fill="#6b7280">featureCountsApp</text>
+      <text x="476" y="210" font-size="10.5" text-anchor="middle" fill="#8a919c">遺伝子ごとのカウント</text>
+
+      <rect x="620" y="136" width="160" height="56" rx="9" fill="#f7f8fa" stroke="#8a919c" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+      <text x="700" y="160" font-size="12.5" font-weight="700" text-anchor="middle" fill="#6b7280">CountQCApp</text>
+      <text x="700" y="178" font-size="10.5" text-anchor="middle" fill="#8a919c">カウント行列の品質</text>
+
+      <rect x="620" y="212" width="160" height="76" rx="9" fill="#f7f8fa" stroke="#8a919c" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+      <text x="700" y="236" font-size="12.5" font-weight="700" text-anchor="middle" fill="#6b7280">EdgeRApp</text>
+      <text x="700" y="254" font-size="10.5" text-anchor="middle" fill="#8a919c">発現変動解析</text>
+      <text x="700" y="272" font-size="10.5" font-weight="700" text-anchor="middle" fill="#a06000">対照群と処理群を提案</text>
+
+      <path d="M138,118 L174,50" stroke="#5b6472" stroke-width="1.6" fill="none" marker-end="url(#ah)"></path>
+      <path d="M138,130 L174,114" stroke="#5b6472" stroke-width="1.6" fill="none" marker-end="url(#ah)"></path>
+      <path d="M138,146 L174,190" stroke="#5b6472" stroke-width="1.6" fill="none" marker-end="url(#ah)"></path>
+      <path d="M332,194 L390,196" stroke="#5b6472" stroke-width="1.6" fill="none" marker-end="url(#ah)"></path>
+      <path d="M558,186 L614,164" stroke="#5b6472" stroke-width="1.6" fill="none" marker-end="url(#ah)"></path>
+      <path d="M558,206 L614,242" stroke="#5b6472" stroke-width="1.6" fill="none" marker-end="url(#ah)"></path>
+
+      <text x="352" y="70" font-size="10.5" fill="#5b6472">FastQCApp と FastqScreenApp は品質確認の枝で、</text>
+      <text x="352" y="88" font-size="10.5" fill="#5b6472">後続のアプリはその出力に依存しません。</text>
+
+      <rect x="16" y="304" width="968" height="48" rx="8" fill="#f0f1f4" stroke="#d4d9e0" stroke-width="1"></rect>
+      <text x="34" y="325" font-size="11.5" fill="#43494f">どの箱も SUSHI に既にあるアプリです。OMAKASE は選んで並べるだけで、アプリ自体は作りません。</text>
+      <text x="34" y="342" font-size="11.5" fill="#43494f">橙色の 2 行は、現在は人が下している判断で、システムが提案しなければならない部分です。</text>
+    </svg>
+  </div>
+  <figcaption>
+    図8 &mdash; RNA-seq データセットに対する一例。どの箱も SUSHI に既にあるアプリです。橙色の行は、システムが提案しなければならない 2 つの判断です。
+  </figcaption>
+</figure>
+
+<p>
+  この例の中で、固定の設定ではなく<b>判断</b>を含む箱が 2 つあり、そこが要点です。<b>STARApp</b>
+  は参照ゲノムを必要としますが、これは人が入力するのではなく、オーダーのメタ情報から導かなければ
+  なりません。<b>EdgeRApp</b> はどの検体が対照群でどれが比較対象かを知る必要があります。現在は
+  人が検体名とオーダーの記述を読んで決めており、システムはそれを提案し、外れていれば訂正を受ける
+  という形になります。
+</p>
+
+<h3>計画より先に答えるべき 2 つの問い</h3>
+
+<div class="callout k">
+  <div class="t">問い 1 — オーダーが <code>processed</code> になったことを、OMAKASE はどうやって知るのか</div>
+  <p>
+    形は 2 通りあります。<b>取りに行く方式：</b>そのデータベースの Python クライアントである
+    bfabricPy を使い、OMAKASE が一定間隔で B-Fabric に尋ねます。<b>通知を受ける方式：</b>
+    B-Fabric 側に何かを追加し、状態が変わったときに OMAKASE へ伝えてもらいます。前者は完全に
+    こちらの制御下にあり、後者は運用が軽い代わりに B-Fabric 側で何を追加できるかに依存します。
+    どちらも未調査です。前者について具体的に分かっていないのは、<b>オーダーの状態が bfabricPy
+    から実際に読める項目に含まれているのか</b>という点です。
+  </p>
+</div>
+
+<div class="callout k">
+  <div class="t">問い 2 — ジョブが終わったこと、しかも正しく終わったことを、どうやって知るのか</div>
+  <p>
+    全ジョブを常時監視するのは規模的に無理なので、終了時に知らせてもらうか、定期的に尋ねるかの
+    選択になります。すでに分かっている厄介な点が 2 つあります。第一に、SUSHI アプリには検体ごとに
+    1 ジョブを出す方式とデータセット全体で 1 ジョブを出す方式があり、成功を判定する単位が同じでは
+    ありません。第二に、これは本レポート内で実測した事実ですが、テストノードでは常駐プロセスの
+    二重起動により各ジョブが 2〜3 回投入され、そのうち 1 つだけが完了します。つまり
+    <b>ジョブの状態欄だけを読むと誤った答えが出ます</b>。作るものは、状態欄だけでなく
+    ディスク上の結果から判定できなければなりません。
+  </p>
+</div>
+
+<p>
+  このユースケースが<b>変えない</b>点が 1 つあります。完了オーダーを監視し連鎖を前に進める常時稼働
+  部分は、普通のコードのままにします。モデルは提案と説明を担当し、タイマーや状態遷移は持ちません。
+  これは次節の末尾に記した設計判断と同じもので、本ユースケースはそれを守るように組み立ててあります。
+</p>
+
+<h2><span class="n">8</span>このプロトタイプが「ではないもの」</h2>
+
+<p>
+  達成事項を長く並べるより、限界を率直に書くほうが有用です。ここと実用サービスの間の隔たりに、
+  残っている仕事があります。
+</p>
+
+<div class="stack">
+  <div class="layer hd"><div class="id">&nbsp;</div><div class="q">限界</div><div class="who">帰結</div><div class="st">状態</div></div>
+  <div class="layer">
+    <div class="id">a</div>
+    <div class="q">自動解析そのものが存在しない</div>
+    <div class="who">本プロトタイプは制御と対話の層だけです。完了したオーダを解析すべきだと自ら判断する仕組みも、どの解析を選ぶかを決める仕組みも、まだありません。それに何が必要かは第 7 節に記しました。</div>
+    <div class="st todo">未着手</div>
+  </div>
+  <div class="layer">
+    <div class="id">b</div>
+    <div class="q">解析レシピにはバイオインフォマティシャンが必要</div>
+    <div class="who">既定の方針として、レシピ集は人が手で書き、生成させません。これが広義のプロジェクトの本当のボトルネックであり、エージェントでは取り除けません。</div>
+    <div class="st todo">人が必要</div>
+  </div>
+  <div class="layer">
+    <div class="id">c</div>
+    <div class="q">ハーネスはシェルを実行できるが、未実測</div>
+    <div class="who">設定上は機能が有効です。しかし実行して確かめたことは一度もありません。誰かがその確認をするまでは「有効だが未証明」として扱ってください。</div>
+    <div class="st todo">未検証</div>
+  </div>
+  <div class="layer">
+    <div class="id">d</div>
+    <div class="q">常駐ツールサーバのメモリが増え続ける</div>
+    <div class="who">以前の実測で、起動直後 38 MB、5 時間使用後で約 4.4 GB でした。再生成の仕組みは未実装なので、無人運転はまだ安全ではありません。</div>
+    <div class="st todo">未解決リスク</div>
+  </div>
+  <div class="layer">
+    <div class="id">e</div>
+    <div class="q">このチェーンは本番に一度も書き込んでいない</div>
+    <div class="who">現時点では正しく、意図的です。本レポートの全ジョブはテスト DB 上で走りました。本番への移行は、独自の準備を伴う別の意思決定です。</div>
+    <div class="st plan">設計どおり</div>
+  </div>
+  <div class="layer">
+    <div class="id">f</div>
+    <div class="q">コードがバージョン管理に入っていない</div>
+    <div class="who">プロトタイプは未追跡のディレクトリにあります。誰かがこれに依存する前に、レビューしてコミットすべきです。</div>
+    <div class="st todo">要対応</div>
+  </div>
+</div>
+
+<div class="callout">
+  <div class="t">この作業が尊重している設計判断 — 今後も守るべきもの</div>
+  <p>
+    将来のシステムの常時稼働部分は、素朴な普通のコードのままにします。トリガ、タイマー、状態機械は
+    エージェントに持たせません。持たせると、物事が起きる順序がモデルの判断に依存し、システムが
+    再現可能だと言えなくなるからです。ここで導入したハーネスは制御と対話の層だけです。タイマーも
+    状態機械も持っておらず、その分離が既存の設計判断を保っています。
+  </p>
+</div>
+
+<h2><span class="n">9</span>まとめ</h2>
+
+<p>
+  人がブラウザで依頼を打ち、あるいは Claude Code から頼むと、エージェントハーネス、オンプレのモデル、
+  100 個のツールを持つ実行サーバ、そして本番の REST API を通って、計算クラスタ上で実際の解析ジョブが
+  始まります。4 件のジョブがそれを証明し、3 つの異なる入口が科学的にバイト一致する出力を与え、依頼と
+  データベース書き込みの間には独立した 5 つの関門が立ち、稼働中の本番データベースは一度も触られて
+  いません。
+</p>
+<p>
+  残っているのは配管ではありません。解析ロジックそのもの——どの完了オーダに注意を払うべきか、
+  それぞれにどのレシピを当てるか——であり、それにはさらなるエンジニアリングではなく領域知識が
+  必要です。
+</p>
+<p>
+  第 7 節は、それを具体的な目標に落としたものです。B-Fabric 上でオーダーが <code>processed</code> に
+  なったら、既存の SUSHI アプリの連鎖がバイオインフォマティシャンに提案され、承認された後は
+  システムが最後まで運ぶ。<b>単体のアプリではなく連鎖を提案し管理することこそ、既存の SUSHI が
+  持たなかった能力であり</b>、これを作る価値の中身です。着手を計画する前に答えるべき問いが 2 つ
+  あります。オーダーが <code>processed</code> になったことをどう知るか、そしてジョブが正しく
+  終わったかどうかをどう知るか。どちらもまだ調査していません。
+</p>
+
+<footer>
+  <p>
+    OMAKASE システム プロトタイプ — 制御チェーン報告、2026-09-09 に fgcz-h-083 上で作成。
+    本文中の数値はすべてその日に実測したものです。本文が明記しない限り、推定や予測は含みません。
+  </p>
+  <p>
+    <b>このファイルはまだブラウザで開かれていません。</b> FGCZ の解析ノードにはグラフィカルな
+    ブラウザが無いため、図は目視ではなくパースするスクリプトで検査しました。一度表示していただき、
+    おかしなところがあればお知らせください。
+  </p>
+  <p>同一の図を持つ英語版があります: <code>omakase-prototype-20260909-en.html</code></p>
+</footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OMAKASE (Omics Metadata Automated Knowledge-based Analysis Suggestion &amp; Execution) system prototype — the control chain, 2026-09-09</title>
+<style>
+  :root{
+    --ink:#1c1f26; --muted:#5b6472; --line:#d4d9e0; --bg:#ffffff; --panel:#f7f9fc;
+    /* Blue = built and measured, amber = present but unverified / needs work,
+       grey = planned or unchanged existing machinery. Same palette as the 2026-08-21 report. */
+    --ok:#2b74c9; --ok-d:#1a5aa8; --ok-l:#6fa3dd; --warn:#cf7a00; --neutral:#8a919c;
+    --ok-bg:#eaf2fb; --warn-bg:#fdf2e3; --neutral-bg:#f0f1f4;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.75; font-size:15px;
+  }
+  .wrap{max-width:1060px;margin:0 auto;padding:44px 24px 96px}
+  header.top{border-bottom:3px solid var(--ink);padding-bottom:20px;margin-bottom:30px}
+  h1{font-size:26px;margin:0 0 6px;letter-spacing:.01em}
+  .sub{color:var(--muted);font-size:14px;margin:0}
+  .acro{margin:0 0 8px;font-size:13.5px;color:var(--muted);letter-spacing:.01em}
+  .acro b{color:var(--ink);font-weight:700}
+  .acro .prov{font-style:italic}
+  .meta{display:flex;gap:26px;flex-wrap:wrap;margin-top:14px;font-size:13px;color:var(--muted)}
+  .meta b{color:var(--ink);font-weight:600}
+  h2{font-size:20px;margin:50px 0 4px;padding-top:14px;border-top:1px solid var(--line)}
+  h2 .n{color:var(--muted);font-weight:400;margin-right:10px;font-variant-numeric:tabular-nums}
+  h3{font-size:16px;margin:28px 0 8px}
+  p{margin:10px 0}
+  .lead{font-size:15.5px;color:#2b3340;margin:6px 0 18px}
+  figure{margin:22px 0 8px;padding:0}
+  figcaption{font-size:12.5px;color:var(--muted);margin-top:8px}
+  svg{max-width:100%;height:auto;display:block}
+  .fig{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px}
+
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(212px,1fr));gap:12px;margin:22px 0 8px}
+  .kpi{border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:#fff}
+  .kpi .v{font-size:27px;font-weight:700;line-height:1.25;font-variant-numeric:tabular-nums}
+  .kpi .k{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .kpi.w .v{color:var(--warn)} .kpi.o .v{color:var(--ok-d)}
+
+  .legend{display:flex;gap:8px 20px;flex-wrap:wrap;font-size:12.5px;margin:12px 0 0}
+  .legend span{display:inline-flex;align-items:center;gap:7px}
+  .sw{width:14px;height:14px;border-radius:4px;flex:0 0 auto}
+  .sw.a{background:var(--ok-d)} .sw.b{background:var(--ok)} .sw.c{background:var(--ok-l)}
+  .sw.d{background:var(--neutral)} .sw.e{background:var(--warn)}
+
+  .stack{border:1px solid var(--line);border-radius:10px;overflow:hidden;margin:20px 0 8px}
+  .layer{display:grid;grid-template-columns:56px 1.25fr 1fr 132px;border-bottom:1px solid var(--line)}
+  .layer:last-child{border-bottom:0}
+  .layer .id{background:#eef1f6;font-weight:700;font-size:13px;display:flex;align-items:center;
+             justify-content:center;color:#3a4a63;border-right:1px solid var(--line)}
+  .layer .q{padding:10px 14px;font-size:14px}
+  .layer .who{padding:10px 14px;font-size:13px;color:var(--muted);border-left:1px dashed var(--line)}
+  .layer .st{padding:10px 12px;font-size:12px;font-weight:700;border-left:1px solid var(--line);
+             display:flex;align-items:center}
+  .layer.hd{background:#eef1f6}
+  .layer.hd .q,.layer.hd .who,.layer.hd .st{font-size:12px;color:#3a4a63;font-weight:700}
+  .st.run{background:var(--ok-bg);color:var(--ok-d)}
+  .st.plan{background:var(--neutral-bg);color:#43494f}
+  .st.todo{background:var(--warn-bg);color:#7a4900}
+
+  table{border-collapse:collapse;width:100%;margin:16px 0;font-size:13.5px}
+  th,td{border:1px solid var(--line);padding:7px 11px;text-align:left;vertical-align:top}
+  th{background:#eef1f6;font-weight:600}
+  td.r{text-align:right;font-variant-numeric:tabular-nums}
+  td.ok{background:var(--ok-bg);color:var(--ok-d);font-weight:600;text-align:center}
+  td.no{background:var(--warn-bg);color:#7a4900;font-weight:600;text-align:center}
+  caption{caption-side:top;text-align:left;font-size:12.5px;color:var(--muted);padding-bottom:6px}
+
+  .callout{border-left:4px solid var(--ok);background:var(--ok-bg);padding:12px 16px;
+           border-radius:0 8px 8px 0;margin:18px 0}
+  .callout.k{border-color:var(--warn);background:var(--warn-bg)}
+  .callout .t{font:700 13.5px/1.7 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+              margin-bottom:2px;color:var(--ink)}
+  .callout p{margin:4px 0;font-size:14px}
+
+  ul{margin:10px 0;padding-left:22px} li{margin:5px 0}
+  code{background:#eef1f5;padding:1px 6px;border-radius:4px;font-size:12.5px;
+       font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  pre{background:#1f2430;color:#e6e9ef;padding:14px 16px;border-radius:9px;overflow-x:auto;
+      font-size:12.5px;line-height:1.65;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  pre code{background:none;padding:0;color:inherit;font-size:12.5px}
+  footer{margin-top:60px;padding-top:18px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted)}
+  @media print{
+    body{font-size:11pt} .wrap{padding:0} h2{page-break-after:avoid}
+    figure,.fig,table,.stack,.kpis,pre{page-break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+
+<!-- Arrow markers live in one 0x0 defs sprite so every later svg can reference url(#ah). -->
+<svg width="0" height="0" aria-hidden="true" focusable="false"><defs>
+  <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="#5b6472"></path>
+  </marker>
+  <marker id="ahb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="#1a5aa8"></path>
+  </marker>
+  <marker id="ahw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="#cf7a00"></path>
+  </marker>
+  <marker id="ahn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="#8a919c"></path>
+  </marker>
+</defs></svg>
+
+<div class="wrap">
+
+<header class="top">
+  <h1>OMAKASE system prototype — the control chain</h1>
+  <p class="acro"><b>O</b>mics <b>M</b>etadata <b>A</b>utomated <b>K</b>nowledge-based
+     <b>A</b>nalysis <b>S</b>uggestion &amp; <b>E</b>xecution
+     <span class="prov">— provisional expansion of the name</span></p>
+  <p class="sub">Web UI (or Claude Code) → hermes-agent → vLLM + SUSHI-MCP-server → Omics-Studio backend API → SLURM</p>
+  <div class="meta">
+    <span>Written <b>2026-09-09</b></span>
+    <span>Node <b>fgcz-h-083</b> (isolated test database)</span>
+    <span>Jobs submitted <b>4</b>, from <b>3</b> control surfaces</span>
+    <span>Writes to production <b>zero</b></span>
+    <span>Next use case <b>section 7</b> (not implemented)</span>
+  </div>
+</header>
+
+<p class="lead">
+  This report describes a prototype that was built and measured on 2026-09-09. Its purpose is
+  narrow and worth stating first: <b>to prove that a request typed into a browser, or issued from
+  Claude Code, can travel through an agent harness and end as a real analysis job running on the
+  compute cluster</b> — with every hop verified rather than assumed. It is not the finished
+  OMAKASE system; what it deliberately is not is set out in section 8. <b>Section 7 is different
+  in kind from the rest of this report:</b> it describes the use case agreed in a meeting on
+  2026-09-10, none of which is implemented, and it names the two questions that have to be
+  answered before that work can be planned.
+</p>
+
+<div class="kpis">
+  <div class="kpi o"><div class="v">4 / 4</div><div class="k">jobs submitted and accepted by SLURM</div></div>
+  <div class="kpi o"><div class="v">26 / 26</div><div class="k">result files byte-identical across control surfaces</div></div>
+  <div class="kpi o"><div class="v">7.2 s</div><div class="k">a question answered through the harness</div></div>
+  <div class="kpi w"><div class="v">1</div><div class="k">capability enabled but not yet measured</div></div>
+</div>
+
+<h2><span class="n">1</span>What the chain is</h2>
+
+<p>
+  Five components sit between a human and a compute job today. Each existed for its own reasons
+  before this prototype; the work of 2026-09-09 was to make them one path and to measure it. The
+  figure also shows, in grey and amber, the parts of the intended system that are <b>not</b> part
+  of that measurement, so that the picture is of the system being built and not only of one day.
+</p>
+
+<figure>
+  <div class="fig">
+    <svg viewBox="0 0 1000 440" role="img" aria-labelledby="f1t">
+      <title id="f1t">The control chain: what was built and measured, and what is planned but not yet implemented</title>
+
+      <!-- control surfaces -->
+      <text x="91" y="84" font-size="12" font-weight="700" text-anchor="middle" fill="#3a4a63">CONTROL SURFACES</text>
+
+      <rect x="16" y="96" width="150" height="52" rx="9" fill="#ffffff" stroke="#1a5aa8" stroke-width="1.6"></rect>
+      <text x="91" y="118" font-size="13.5" font-weight="700" text-anchor="middle" fill="#1c1f26">Web UI</text>
+      <text x="91" y="136" font-size="11" text-anchor="middle" fill="#5b6472">port 8770, token</text>
+
+      <rect x="16" y="158" width="150" height="52" rx="9" fill="#ffffff" stroke="#1a5aa8" stroke-width="1.6"></rect>
+      <text x="91" y="180" font-size="13.5" font-weight="700" text-anchor="middle" fill="#1c1f26">Claude Code</text>
+      <text x="91" y="198" font-size="11" text-anchor="middle" fill="#5b6472">MCP over stdio</text>
+
+      <rect x="16" y="220" width="150" height="52" rx="9" fill="#f7f8fa" stroke="#8a919c" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+      <text x="91" y="242" font-size="13.5" font-weight="700" text-anchor="middle" fill="#6b7280">Slack</text>
+      <text x="91" y="260" font-size="11" text-anchor="middle" fill="#8a919c">planned</text>
+
+      <rect x="16" y="282" width="150" height="52" rx="9" fill="#f7f8fa" stroke="#8a919c" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+      <text x="91" y="304" font-size="13.5" font-weight="700" text-anchor="middle" fill="#6b7280">Teams</text>
+      <text x="91" y="322" font-size="11" text-anchor="middle" fill="#8a919c">planned</text>
+
+      <!-- harness -->
+      <rect x="210" y="96" width="150" height="238" rx="9" fill="#eaf2fb" stroke="#1a5aa8" stroke-width="2.2"></rect>
+      <text x="285" y="170" font-size="14" font-weight="700" text-anchor="middle" fill="#1c1f26">hermes-agent</text>
+      <text x="285" y="189" font-size="11.5" text-anchor="middle" fill="#5b6472">the harness</text>
+      <text x="285" y="213" font-size="11.5" text-anchor="middle" fill="#5b6472">127.0.0.1:8642</text>
+      <text x="285" y="231" font-size="11.5" text-anchor="middle" fill="#5b6472">bearer required</text>
+      <text x="285" y="253" font-size="11" text-anchor="middle" fill="#5b6472">decides what to do</text>
+
+      <!-- reason lane: SAKE is planned and will take over the model call -->
+      <rect x="404" y="18" width="176" height="56" rx="9" fill="#f7f8fa" stroke="#8a919c" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+      <text x="492" y="41" font-size="13" font-weight="700" text-anchor="middle" fill="#6b7280">SAKE</text>
+      <text x="492" y="59" font-size="11" text-anchor="middle" fill="#8a919c">will own the model call</text>
+
+      <rect x="404" y="96" width="176" height="62" rx="9" fill="#ffffff" stroke="#2b74c9" stroke-width="1.6"></rect>
+      <text x="492" y="118" font-size="13.5" font-weight="700" text-anchor="middle" fill="#1c1f26">vLLM</text>
+      <text x="492" y="135" font-size="11.5" text-anchor="middle" fill="#5b6472">on-premises model</text>
+      <text x="492" y="150" font-size="10.5" text-anchor="middle" fill="#5b6472">fgcz-c-056:8000</text>
+
+      <!-- act lane -->
+      <rect x="404" y="186" width="176" height="62" rx="9" fill="#ffffff" stroke="#2b74c9" stroke-width="1.6"></rect>
+      <text x="492" y="208" font-size="12.5" font-weight="700" text-anchor="middle" fill="#1c1f26">SUSHI-MCP-server</text>
+      <text x="492" y="225" font-size="11.5" text-anchor="middle" fill="#5b6472">100 tools</text>
+      <text x="492" y="240" font-size="10.5" text-anchor="middle" fill="#5b6472">knowledge + actions</text>
+
+      <rect x="632" y="186" width="158" height="62" rx="9" fill="#ffffff" stroke="#2b74c9" stroke-width="1.6"></rect>
+      <text x="711" y="208" font-size="13" font-weight="700" text-anchor="middle" fill="#1c1f26">Omics-Studio</text>
+      <text x="711" y="225" font-size="11.5" text-anchor="middle" fill="#5b6472">REST API, 18 apps</text>
+      <text x="711" y="240" font-size="10.5" text-anchor="middle" fill="#5b6472">083 port 3010</text>
+
+      <rect x="838" y="186" width="146" height="62" rx="9" fill="#ffffff" stroke="#8a919c" stroke-width="1.6"></rect>
+      <text x="911" y="208" font-size="12.5" font-weight="700" text-anchor="middle" fill="#1c1f26">job_manager</text>
+      <text x="911" y="225" font-size="11.5" text-anchor="middle" fill="#5b6472">then SLURM</text>
+      <text x="911" y="240" font-size="10.5" text-anchor="middle" fill="#5b6472">the cluster</text>
+
+      <!-- B-Fabric is planned: the tool server has no B-Fabric tool today -->
+      <rect x="632" y="272" width="158" height="62" rx="9" fill="#f7f8fa" stroke="#8a919c" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+      <text x="711" y="294" font-size="13" font-weight="700" text-anchor="middle" fill="#6b7280">B-Fabric</text>
+      <text x="711" y="311" font-size="11" text-anchor="middle" fill="#8a919c">via bfabricPy</text>
+      <text x="711" y="326" font-size="10.5" text-anchor="middle" fill="#8a919c">orders and samples</text>
+
+      <!-- execution lane: amber, because this is switched on but never exercised -->
+      <rect x="404" y="272" width="176" height="62" rx="9" fill="#fdf2e3" stroke="#cf7a00" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+      <text x="492" y="294" font-size="13" font-weight="700" text-anchor="middle" fill="#1c1f26">Bash</text>
+      <text x="492" y="311" font-size="11" text-anchor="middle" fill="#8a5b00">Linux commands</text>
+      <text x="492" y="326" font-size="10.5" text-anchor="middle" fill="#8a5b00">enabled, not measured</text>
+
+      <!-- arrows: control surfaces into the harness -->
+      <path d="M168,122 L204,150" stroke="#1a5aa8" stroke-width="1.8" fill="none" marker-end="url(#ahb)"></path>
+      <path d="M168,184 L204,192" stroke="#1a5aa8" stroke-width="1.8" fill="none" marker-end="url(#ahb)"></path>
+      <path d="M168,246 L204,238" stroke="#8a919c" stroke-width="1.6" stroke-dasharray="5 4" fill="none" marker-end="url(#ahn)"></path>
+      <path d="M168,308 L204,278" stroke="#8a919c" stroke-width="1.6" stroke-dasharray="5 4" fill="none" marker-end="url(#ahn)"></path>
+
+      <!-- arrows: out of the harness -->
+      <path d="M362,132 L398,58" stroke="#8a919c" stroke-width="1.6" stroke-dasharray="5 4" fill="none" marker-end="url(#ahn)"></path>
+      <path d="M492,74 L492,90" stroke="#8a919c" stroke-width="1.6" stroke-dasharray="5 4" fill="none" marker-end="url(#ahn)"></path>
+      <path d="M362,158 L398,130" stroke="#5b6472" stroke-width="1.6" fill="none" marker-end="url(#ah)" marker-start="url(#ah)"></path>
+      <path d="M362,217 L398,217" stroke="#5b6472" stroke-width="1.6" fill="none" marker-end="url(#ah)" marker-start="url(#ah)"></path>
+      <path d="M362,262 L398,296" stroke="#cf7a00" stroke-width="1.6" stroke-dasharray="5 4" fill="none" marker-end="url(#ahw)"></path>
+
+      <!-- arrows: right of the tool server -->
+      <path d="M580,217 L626,217" stroke="#5b6472" stroke-width="1.6" fill="none" marker-end="url(#ah)"></path>
+      <path d="M790,217 L832,217" stroke="#5b6472" stroke-width="1.6" fill="none" marker-end="url(#ah)"></path>
+      <path d="M580,240 L626,292" stroke="#8a919c" stroke-width="1.6" stroke-dasharray="5 4" fill="none" marker-end="url(#ahn)"></path>
+
+      <text x="381" y="180" font-size="10.5" text-anchor="middle" fill="#5b6472">reason</text>
+      <text x="381" y="209" font-size="10.5" text-anchor="middle" fill="#5b6472">act</text>
+      <text x="381" y="252" font-size="10.5" text-anchor="middle" fill="#a06000">execute</text>
+      <text x="603" y="209" font-size="10.5" text-anchor="middle" fill="#5b6472">HTTP</text>
+      <text x="811" y="209" font-size="10.5" text-anchor="middle" fill="#5b6472">poll</text>
+
+      <!-- legend: what the three visual states mean -->
+      <rect x="20" y="350" width="16" height="11" rx="3" fill="#eaf2fb" stroke="#1a5aa8" stroke-width="1.4"></rect>
+      <text x="44" y="360" font-size="11" fill="#43494f">built and measured on 2026-09-09</text>
+      <rect x="300" y="350" width="16" height="11" rx="3" fill="#f7f8fa" stroke="#8a919c" stroke-width="1.4" stroke-dasharray="4 3"></rect>
+      <text x="324" y="360" font-size="11" fill="#43494f">planned - not implemented yet</text>
+      <rect x="610" y="350" width="16" height="11" rx="3" fill="#fdf2e3" stroke="#cf7a00" stroke-width="1.4" stroke-dasharray="4 3"></rect>
+      <text x="634" y="360" font-size="11" fill="#43494f">enabled, but never yet run</text>
+
+      <!-- footer band -->
+      <rect x="16" y="376" width="968" height="48" rx="8" fill="#f0f1f4" stroke="#d4d9e0" stroke-width="1"></rect>
+      <text x="34" y="397" font-size="11.5" fill="#43494f">The harness is the only component that decides anything. The model supplies judgement, the</text>
+      <text x="34" y="414" font-size="11.5" fill="#43494f">tool server supplies capability, and the REST API is the single door to real data and real jobs.</text>
+    </svg>
+  </div>
+  <figcaption>
+    Figure 1 — The chain. Double-headed arrows are request/response; single-headed arrows are
+    one-way. Solid blue was built and measured on 2026-09-09; dashed grey is planned and does not
+    exist yet; dashed amber is switched on but has never been run. Nothing in this diagram leaves
+    the FGCZ network.
+  </figcaption>
+</figure>
+
+<p>
+  Four things in the figure are deliberately not blue, because they are <b>not</b> part of what was
+  measured. They are drawn anyway so the picture is of the intended system:
+</p>
+
+<ul>
+  <li><b>Slack and Teams</b> — further control surfaces onto the same harness, so a request can
+      start from where people already talk. Planned; neither is connected today.</li>
+  <li><b>SAKE</b> — the FastAPI service being built for Omics-Studio. Today the harness calls the
+      model directly. The intention is that SAKE takes over that call, so that model access has one
+      owner rather than one per client. Nothing in this prototype depends on that move.</li>
+  <li><b>B-Fabric via bfabricPy</b> — B-Fabric is FGCZ's order and sample database; bfabricPy is its
+      Python client. The tool server has no B-Fabric tool at all today, which is why order metadata
+      cannot yet be read on this path — and reading it is the whole point of the finished system.</li>
+  <li><b>Bash</b> — shell commands on the host machine. This one is amber rather than grey, and the
+      difference is real: the capability <b>is</b> switched on in the harness configuration and
+      unsandboxed, it has simply never been exercised. It is the &ldquo;1 capability enabled but not
+      yet measured&rdquo; counted at the top of this report.</li>
+</ul>
+
+<div class="stack">
+  <div class="layer hd"><div class="id">#</div><div class="q">Component</div><div class="who">What it contributes</div><div class="st">State</div></div>
+  <div class="layer">
+    <div class="id">1</div>
+    <div class="q"><b>Control surface</b> — the Web UI on port 8770, or Claude Code</div>
+    <div class="who">Where a human types. Both reach the same harness, so the answer does not depend on which you use.</div>
+    <div class="st run">measured</div>
+  </div>
+  <div class="layer">
+    <div class="id">2</div>
+    <div class="q"><b>hermes-agent</b> — the harness, on <code>127.0.0.1:8642</code></div>
+    <div class="who">Holds the conversation, decides which tool to call, keeps sessions and memory, and can run scheduled work.</div>
+    <div class="st run">measured</div>
+  </div>
+  <div class="layer">
+    <div class="id">3</div>
+    <div class="q"><b>vLLM</b> — the on-premises model, <code>DeepSeek-V4-Flash-DSpark</code></div>
+    <div class="who">Supplies the judgement. Runs inside FGCZ, so order metadata never leaves the network.</div>
+    <div class="st run">measured</div>
+  </div>
+  <div class="layer">
+    <div class="id">4</div>
+    <div class="q"><b>SUSHI-MCP-server</b> — 100 tools over the Model Context Protocol</div>
+    <div class="who">Turns an intention into an action: read the knowledge base, save a record, or call the REST API.</div>
+    <div class="st run">measured</div>
+  </div>
+  <div class="layer">
+    <div class="id">5</div>
+    <div class="q"><b>Omics-Studio backend API</b> — <code>fgcz-h-083:3010</code></div>
+    <div class="who">The only door to datasets and jobs. Enforces the token's project scope and the write policy.</div>
+    <div class="st run">measured</div>
+  </div>
+  <div class="layer">
+    <div class="id">6</div>
+    <div class="q"><b>job_manager and SLURM</b> — the existing production machinery</div>
+    <div class="who">Picks up a created job row, submits it to the cluster, resolves dependencies, writes results to gStore.</div>
+    <div class="st plan">unchanged</div>
+  </div>
+</div>
+
+<p>
+  One naming note, because it causes confusion: <b>Omics-Studio</b> is the product name.
+  &ldquo;New SUSHI&rdquo; is only an internal codename for the same system, and the REST API in
+  layer 5 is the same API the existing web front end uses.
+</p>
+
+<h2><span class="n">2</span>Two routes, one user interface</h2>
+
+<p>
+  The Web UI can send a turn by either of two routes, chosen from a dropdown. This matters
+  because the two are not equivalent in cost, and pretending otherwise would mislead whoever
+  operates the system.
+</p>
+
+<figure>
+  <div class="fig">
+    <svg viewBox="0 0 1000 300" role="img" aria-labelledby="f2t">
+      <title id="f2t">The direct route and the harness route compared by who runs the tool loop</title>
+
+      <rect x="16" y="118" width="132" height="58" rx="9" fill="#ffffff" stroke="#1a5aa8" stroke-width="1.6"></rect>
+      <text x="82" y="142" font-size="13" font-weight="700" text-anchor="middle" fill="#1c1f26">Web UI</text>
+      <text x="82" y="160" font-size="11" text-anchor="middle" fill="#5b6472">one dropdown</text>
+
+      <!-- route A -->
+      <rect x="220" y="28" width="740" height="104" rx="10" fill="#f7f9fc" stroke="#8a919c" stroke-width="1.4" stroke-dasharray="5 4"></rect>
+      <text x="238" y="50" font-size="12.5" font-weight="700" fill="#43494f">ROUTE A — direct to the model</text>
+      <rect x="240" y="60" width="150" height="52" rx="8" fill="#ffffff" stroke="#2b74c9" stroke-width="1.5"></rect>
+      <text x="315" y="82" font-size="12" font-weight="700" text-anchor="middle" fill="#1c1f26">own tool loop</text>
+      <text x="315" y="99" font-size="10.5" text-anchor="middle" fill="#5b6472">about 100 lines</text>
+      <rect x="440" y="60" width="140" height="52" rx="8" fill="#ffffff" stroke="#2b74c9" stroke-width="1.5"></rect>
+      <text x="510" y="82" font-size="12" font-weight="700" text-anchor="middle" fill="#1c1f26">vLLM</text>
+      <text x="510" y="99" font-size="10.5" text-anchor="middle" fill="#5b6472">16 tools shown</text>
+      <rect x="630" y="60" width="150" height="52" rx="8" fill="#ffffff" stroke="#2b74c9" stroke-width="1.5"></rect>
+      <text x="705" y="82" font-size="11.5" font-weight="700" text-anchor="middle" fill="#1c1f26">SUSHI-MCP-server</text>
+      <text x="705" y="99" font-size="10.5" text-anchor="middle" fill="#5b6472">the other 84 by search</text>
+      <text x="872" y="80" font-size="15" font-weight="700" text-anchor="middle" fill="#1a5aa8">1.3 s</text>
+      <text x="872" y="100" font-size="11" text-anchor="middle" fill="#5b6472">2 900 tokens</text>
+      <path d="M390,86 L434,86" stroke="#5b6472" stroke-width="1.5" fill="none" marker-end="url(#ah)"></path>
+      <path d="M580,86 L624,86" stroke="#5b6472" stroke-width="1.5" fill="none" marker-end="url(#ah)"></path>
+
+      <!-- route B -->
+      <rect x="220" y="152" width="740" height="104" rx="10" fill="#eaf2fb" stroke="#1a5aa8" stroke-width="2"></rect>
+      <text x="238" y="174" font-size="12.5" font-weight="700" fill="#1a5aa8">ROUTE B — through the harness (the default)</text>
+      <rect x="240" y="184" width="150" height="52" rx="8" fill="#ffffff" stroke="#1a5aa8" stroke-width="1.5"></rect>
+      <text x="315" y="206" font-size="12" font-weight="700" text-anchor="middle" fill="#1c1f26">thin relay</text>
+      <text x="315" y="223" font-size="10.5" text-anchor="middle" fill="#5b6472">no tools attached</text>
+      <rect x="440" y="184" width="140" height="52" rx="8" fill="#ffffff" stroke="#1a5aa8" stroke-width="1.5"></rect>
+      <text x="510" y="206" font-size="12" font-weight="700" text-anchor="middle" fill="#1c1f26">hermes-agent</text>
+      <text x="510" y="223" font-size="10.5" text-anchor="middle" fill="#5b6472">its own loop</text>
+      <rect x="630" y="184" width="150" height="52" rx="8" fill="#ffffff" stroke="#1a5aa8" stroke-width="1.5"></rect>
+      <text x="705" y="206" font-size="11.5" font-weight="700" text-anchor="middle" fill="#1c1f26">SUSHI-MCP-server</text>
+      <text x="705" y="223" font-size="10.5" text-anchor="middle" fill="#5b6472">its own connection</text>
+      <text x="872" y="204" font-size="15" font-weight="700" text-anchor="middle" fill="#1a5aa8">7 to 9 s</text>
+      <text x="872" y="224" font-size="11" text-anchor="middle" fill="#5b6472">42 200 tokens</text>
+      <path d="M390,210 L434,210" stroke="#1a5aa8" stroke-width="1.5" fill="none" marker-end="url(#ahb)"></path>
+      <path d="M580,210 L624,210" stroke="#1a5aa8" stroke-width="1.5" fill="none" marker-end="url(#ahb)"></path>
+
+      <path d="M148,138 L214,80" stroke="#8a919c" stroke-width="1.6" fill="none" marker-end="url(#ah)"></path>
+      <path d="M148,158 L214,204" stroke="#1a5aa8" stroke-width="2" fill="none" marker-end="url(#ahb)"></path>
+
+      <text x="180" y="286" font-size="11" fill="#5b6472">Both routes reach the same tools and the same REST API. Only the cost and the extra features differ.</text>
+    </svg>
+  </div>
+  <figcaption>
+    Figure 2 — Route A is roughly 5&ndash;7&times; faster and uses about 15&times; fewer tokens per
+    turn. Route B is nevertheless the default, for the reason given below.
+  </figcaption>
+</figure>
+
+<table>
+  <caption>Measured on the same question, 2026-09-09, on the same node.</caption>
+  <tr>
+    <th>&nbsp;</th>
+    <th>Route A — direct</th>
+    <th>Route B — harness (default)</th>
+  </tr>
+  <tr><td>Who runs the tool loop</td><td>the UI server itself</td><td>hermes-agent</td></tr>
+  <tr><td>Time for one question</td><td class="r">1.3 s</td><td class="r">7.2 s</td></tr>
+  <tr><td>Tokens per turn</td><td class="r">about 2 900</td><td class="r">about 42 200</td></tr>
+  <tr><td>Share of the 262 144-token context</td><td class="r">1.1 %</td><td class="r">16 %</td></tr>
+  <tr><td>Sessions, memory, skills</td><td class="no">no</td><td class="ok">yes</td></tr>
+  <tr><td>Scheduled work without a system cron</td><td class="no">no</td><td class="ok">yes</td></tr>
+  <tr><td>Tool trace visible in the UI</td><td class="ok">yes, inline</td><td class="no">no — kept by the harness</td></tr>
+</table>
+
+<div class="callout">
+  <div class="t">Why the slower route is the default</div>
+  <p>
+    The harness is the part of OMAKASE that is meant to grow: sessions, memory, scheduling and
+    delegation all live there. If simple tasks quietly bypassed it, the prototype would prove
+    only that the fast path works, and every later feature would be built on an untested
+    foundation. So the default sends everything through the harness, and the direct route stays
+    available for when speed matters.
+  </p>
+</div>
+
+<h2><span class="n">3</span>What happens when someone asks for a job</h2>
+
+<p>
+  This is the sequence that was actually executed. The example is a quality-control run
+  (<code>Fastqc</code>) on an existing two-sample dataset.
+</p>
+
+<figure>
+  <div class="fig">
+    <svg viewBox="0 0 1000 430" role="img" aria-labelledby="f3t">
+      <title id="f3t">Step by step sequence of one job submission through the harness</title>
+
+      <!-- lanes -->
+      <rect x="20" y="20" width="150" height="34" rx="7" fill="#eef1f6" stroke="#d4d9e0" stroke-width="1"></rect>
+      <text x="95" y="42" font-size="11.5" font-weight="700" text-anchor="middle" fill="#3a4a63">Browser</text>
+      <rect x="182" y="20" width="150" height="34" rx="7" fill="#eef1f6" stroke="#d4d9e0" stroke-width="1"></rect>
+      <text x="257" y="42" font-size="11.5" font-weight="700" text-anchor="middle" fill="#3a4a63">Web UI 8770</text>
+      <rect x="344" y="20" width="150" height="34" rx="7" fill="#eaf2fb" stroke="#1a5aa8" stroke-width="1.4"></rect>
+      <text x="419" y="42" font-size="11.5" font-weight="700" text-anchor="middle" fill="#1a5aa8">hermes 8642</text>
+      <rect x="506" y="20" width="150" height="34" rx="7" fill="#eef1f6" stroke="#d4d9e0" stroke-width="1"></rect>
+      <text x="581" y="42" font-size="11.5" font-weight="700" text-anchor="middle" fill="#3a4a63">vLLM model</text>
+      <rect x="668" y="20" width="150" height="34" rx="7" fill="#eef1f6" stroke="#d4d9e0" stroke-width="1"></rect>
+      <text x="743" y="42" font-size="11" font-weight="700" text-anchor="middle" fill="#3a4a63">SUSHI-MCP-server</text>
+      <rect x="830" y="20" width="150" height="34" rx="7" fill="#eef1f6" stroke="#d4d9e0" stroke-width="1"></rect>
+      <text x="905" y="42" font-size="11" font-weight="700" text-anchor="middle" fill="#3a4a63">Omics-Studio 083</text>
+
+      <!-- lifelines -->
+      <path d="M95,54 L95,392" stroke="#d4d9e0" stroke-width="1" stroke-dasharray="4 4"></path>
+      <path d="M257,54 L257,392" stroke="#d4d9e0" stroke-width="1" stroke-dasharray="4 4"></path>
+      <path d="M419,54 L419,392" stroke="#1a5aa8" stroke-width="1.2" stroke-dasharray="4 4"></path>
+      <path d="M581,54 L581,392" stroke="#d4d9e0" stroke-width="1" stroke-dasharray="4 4"></path>
+      <path d="M743,54 L743,392" stroke="#d4d9e0" stroke-width="1" stroke-dasharray="4 4"></path>
+      <path d="M905,54 L905,392" stroke="#d4d9e0" stroke-width="1" stroke-dasharray="4 4"></path>
+
+      <!-- step 1 -->
+      <path d="M95,84 L251,84" stroke="#1a5aa8" stroke-width="1.7" fill="none" marker-end="url(#ahb)"></path>
+      <text x="100" y="78" font-size="10.5" fill="#1c1f26">1. “run quality control on this dataset” + token</text>
+
+      <!-- step 2 -->
+      <path d="M257,118 L413,118" stroke="#1a5aa8" stroke-width="1.7" fill="none" marker-end="url(#ahb)"></path>
+      <text x="262" y="112" font-size="10.5" fill="#1c1f26">2. relayed as prose, no tools attached</text>
+
+      <!-- step 3 -->
+      <path d="M419,152 L575,152" stroke="#5b6472" stroke-width="1.5" fill="none" marker-end="url(#ah)"></path>
+      <text x="424" y="146" font-size="10.5" fill="#1c1f26">3. ask the model, with tool schemas</text>
+
+      <!-- step 4 -->
+      <path d="M575,186 L423,186" stroke="#5b6472" stroke-width="1.5" fill="none" marker-end="url(#ah)"></path>
+      <text x="430" y="180" font-size="10.5" fill="#1c1f26">4. model replies: call this tool, with these arguments</text>
+
+      <!-- step 5 -->
+      <path d="M419,220 L737,220" stroke="#5b6472" stroke-width="1.5" fill="none" marker-end="url(#ah)"></path>
+      <text x="424" y="214" font-size="10.5" fill="#1c1f26">5. execute the tool</text>
+
+      <!-- step 6 -->
+      <path d="M743,254 L899,254" stroke="#cf7a00" stroke-width="1.9" fill="none" marker-end="url(#ahw)"></path>
+      <text x="600" y="248" font-size="10.5" fill="#7a4900">6. POST a job — the only write in the whole sequence</text>
+
+      <!-- step 7 -->
+      <path d="M899,288 L747,288" stroke="#5b6472" stroke-width="1.5" fill="none" marker-end="url(#ah)"></path>
+      <text x="700" y="282" font-size="10.5" fill="#1c1f26">7. job id, output dataset id</text>
+
+      <!-- step 8 -->
+      <path d="M737,322 L423,322" stroke="#5b6472" stroke-width="1.5" fill="none" marker-end="url(#ah)"></path>
+      <text x="470" y="316" font-size="10.5" fill="#1c1f26">8. tool result returned to the harness</text>
+
+      <!-- step 9 -->
+      <path d="M413,356 L99,356" stroke="#1a5aa8" stroke-width="1.7" fill="none" marker-end="url(#ahb)"></path>
+      <text x="140" y="350" font-size="10.5" fill="#1c1f26">9. one sentence back to the person who asked</text>
+
+      <rect x="20" y="398" width="960" height="24" rx="6" fill="#fdf2e3" stroke="#cf7a00" stroke-width="1"></rect>
+      <text x="34" y="414" font-size="11" fill="#7a4900">Afterwards, outside this sequence: a background daemon notices the new job row and submits it to SLURM. That machinery was not modified.</text>
+    </svg>
+  </div>
+  <figcaption>
+    Figure 3 — Steps 3 to 8 may repeat if the model needs more than one tool. Step 6 is the
+    single point at which anything is written; every other hop is a read or a message.
+  </figcaption>
+</figure>
+
+<h3>The same request, as commands</h3>
+
+<pre><code># Through the Web UI's API. The browser does exactly this.
+curl -X POST http://fgcz-h-083.fgcz-net.unizh.ch:8770/api/chat \
+     -H "Authorization: Bearer $UI_TOKEN" \
+     -H 'Content-Type: application/json' \
+     -d '{"message": "submit a Fastqc job on dataset 9",
+          "session": "demo", "upstream": "hermes"}'
+
+# What the tool call underneath resolves to. Note the body is nested under "job".
+POST /api/v1/jobs
+{"job": {"dataset_id": 9, "app_name": "Fastqc",
+         "parameters": {"cores": 1, "scratch": 10}}}</code></pre>
+
+<h2><span class="n">4</span>The safety model</h2>
+
+<p>
+  The chain can start real compute and write to a database, so it is worth being explicit about
+  what stops it doing that in the wrong place. There are five independent gates. They were
+  tested by trying to get past each one.
+</p>
+
+<figure>
+  <div class="fig">
+    <svg viewBox="0 0 1000 390" role="img" aria-labelledby="f4t">
+      <title id="f4t">Five independent gates between a request and a database write, and the separation of test from production</title>
+
+      <text x="20" y="24" font-size="12.5" font-weight="700" fill="#3a4a63">FIVE INDEPENDENT GATES</text>
+
+      <!-- gate 1 -->
+      <rect x="20" y="38" width="182" height="76" rx="9" fill="#ffffff" stroke="#1a5aa8" stroke-width="1.6"></rect>
+      <text x="111" y="60" font-size="12" font-weight="700" text-anchor="middle" fill="#1c1f26">1. UI token</text>
+      <text x="111" y="78" font-size="10.5" text-anchor="middle" fill="#5b6472">43 characters</text>
+      <text x="111" y="94" font-size="10.5" text-anchor="middle" fill="#5b6472">no key means no answer</text>
+      <text x="111" y="108" font-size="10.5" font-weight="700" text-anchor="middle" fill="#1a5aa8">verified: 401</text>
+
+      <!-- gate 2 -->
+      <rect x="216" y="38" width="182" height="76" rx="9" fill="#ffffff" stroke="#1a5aa8" stroke-width="1.6"></rect>
+      <text x="307" y="60" font-size="12" font-weight="700" text-anchor="middle" fill="#1c1f26">2. harness bearer</text>
+      <text x="307" y="78" font-size="10.5" text-anchor="middle" fill="#5b6472">37 characters</text>
+      <text x="307" y="94" font-size="10.5" text-anchor="middle" fill="#5b6472">bound to loopback only</text>
+      <text x="307" y="108" font-size="10.5" font-weight="700" text-anchor="middle" fill="#1a5aa8">verified: 401</text>
+
+      <!-- gate 3 -->
+      <rect x="412" y="38" width="182" height="76" rx="9" fill="#ffffff" stroke="#1a5aa8" stroke-width="1.6"></rect>
+      <text x="503" y="60" font-size="12" font-weight="700" text-anchor="middle" fill="#1c1f26">3. target registry</text>
+      <text x="503" y="78" font-size="10.5" text-anchor="middle" fill="#5b6472">per target: may it write?</text>
+      <text x="503" y="94" font-size="10.5" text-anchor="middle" fill="#5b6472">tokens by name, never value</text>
+      <text x="503" y="108" font-size="10.5" font-weight="700" text-anchor="middle" fill="#1a5aa8">production: no</text>
+
+      <!-- gate 4 -->
+      <rect x="608" y="38" width="182" height="76" rx="9" fill="#ffffff" stroke="#1a5aa8" stroke-width="1.6"></rect>
+      <text x="699" y="60" font-size="12" font-weight="700" text-anchor="middle" fill="#1c1f26">4. project scope</text>
+      <text x="699" y="78" font-size="10.5" text-anchor="middle" fill="#5b6472">token sees one project</text>
+      <text x="699" y="94" font-size="10.5" text-anchor="middle" fill="#5b6472">anything else is refused</text>
+      <text x="699" y="108" font-size="10.5" font-weight="700" text-anchor="middle" fill="#1a5aa8">verified: 403</text>
+
+      <!-- gate 5 -->
+      <rect x="804" y="38" width="176" height="76" rx="9" fill="#ffffff" stroke="#1a5aa8" stroke-width="1.6"></rect>
+      <text x="892" y="60" font-size="12" font-weight="700" text-anchor="middle" fill="#1c1f26">5. write policy</text>
+      <text x="892" y="78" font-size="10.5" text-anchor="middle" fill="#5b6472">read only, or add only,</text>
+      <text x="892" y="94" font-size="10.5" text-anchor="middle" fill="#5b6472">or submit only</text>
+      <text x="892" y="108" font-size="10.5" font-weight="700" text-anchor="middle" fill="#1a5aa8">independent of 1 to 4</text>
+
+      <path d="M202,76 L212,76" stroke="#5b6472" stroke-width="1.4" fill="none" marker-end="url(#ah)"></path>
+      <path d="M398,76 L408,76" stroke="#5b6472" stroke-width="1.4" fill="none" marker-end="url(#ah)"></path>
+      <path d="M594,76 L604,76" stroke="#5b6472" stroke-width="1.4" fill="none" marker-end="url(#ah)"></path>
+      <path d="M790,76 L800,76" stroke="#5b6472" stroke-width="1.4" fill="none" marker-end="url(#ah)"></path>
+
+      <!-- two databases -->
+      <text x="20" y="162" font-size="12.5" font-weight="700" fill="#3a4a63">TWO SEPARATE DATABASES — this is the reason the prototype is safe at all</text>
+
+      <rect x="20" y="176" width="466" height="128" rx="10" fill="#eaf2fb" stroke="#1a5aa8" stroke-width="2"></rect>
+      <text x="253" y="202" font-size="14" font-weight="700" text-anchor="middle" fill="#1a5aa8">fgcz-h-083 — test</text>
+      <text x="253" y="224" font-size="11.5" text-anchor="middle" fill="#43494f">Its own database. 19 projects, small.</text>
+      <text x="253" y="243" font-size="11.5" text-anchor="middle" fill="#43494f">Writes allowed. Jobs really run on the cluster.</text>
+      <text x="253" y="262" font-size="11.5" text-anchor="middle" fill="#43494f">Every job in this report ran here.</text>
+      <text x="253" y="286" font-size="12" font-weight="700" text-anchor="middle" fill="#1a5aa8">nothing here can damage production</text>
+
+      <rect x="502" y="176" width="478" height="128" rx="10" fill="#f0f1f4" stroke="#8a919c" stroke-width="2" stroke-dasharray="6 4"></rect>
+      <text x="741" y="202" font-size="14" font-weight="700" text-anchor="middle" fill="#43494f">fgcz-h-082 — production</text>
+      <text x="741" y="224" font-size="11.5" text-anchor="middle" fill="#43494f">The live database. 2 608 projects, 82 094 datasets.</text>
+      <text x="741" y="243" font-size="11.5" text-anchor="middle" fill="#43494f">Refused twice over: no token was given to the</text>
+      <text x="741" y="262" font-size="11.5" text-anchor="middle" fill="#43494f">harness, and the registry also forbids writing.</text>
+      <text x="741" y="286" font-size="12" font-weight="700" text-anchor="middle" fill="#43494f">zero writes, all day</text>
+
+      <rect x="20" y="320" width="960" height="52" rx="8" fill="#fdf2e3" stroke="#cf7a00" stroke-width="1.2"></rect>
+      <text x="36" y="340" font-size="11.5" font-weight="700" fill="#7a4900">The one hazard that remains open by choice</text>
+      <text x="36" y="358" font-size="11.5" fill="#7a4900">The harness is allowed to run shell commands. That is why gate 1 exists, and why the server now refuses to start if it is published without a key.</text>
+    </svg>
+  </div>
+  <figcaption>
+    Figure 4 — Gates 1 and 2 guard access; gates 3, 4 and 5 guard what an authenticated caller
+    may then do. Gate 5 is enforced by the API itself, so it holds even if a caller legitimately
+    holds a write-capable credential.
+  </figcaption>
+</figure>
+
+<h3>How each gate was tested</h3>
+
+<table>
+  <tr><th>Attempt</th><th>Expected</th><th>Observed</th></tr>
+  <tr><td>Open the UI with no key</td><td>refused</td><td class="ok">401</td></tr>
+  <tr><td>Open the UI with a wrong key</td><td>refused</td><td class="ok">401</td></tr>
+  <tr><td>Correct key as a header, and as <code>?key=</code></td><td>allowed</td><td class="ok">200</td></tr>
+  <tr><td>Call the harness with no bearer</td><td>refused</td><td class="ok">401</td></tr>
+  <tr><td>Publish the UI to the network with no key set</td><td>must not start</td><td class="ok">refuses, exit code 2</td></tr>
+  <tr><td>Ask the harness for the production target's credential state</td><td>absent</td><td class="ok">no token, writes forbidden</td></tr>
+</table>
+
+<div class="callout k">
+  <div class="t">A defect this work uncovered, worth repeating because it is a general trap</div>
+  <p>
+    The UI had been reachable from the whole network for two days without anyone intending it. The
+    cause was a configuration line that read as <em>unset</em> — an environment variable present
+    but empty. The code asked for &ldquo;this value, or the safe default&rdquo;, and an empty value
+    is still a value, so the safe default never applied and the server bound to every network
+    interface. It now treats empty as unset. Any configuration reader in this project should be
+    checked for the same mistake.
+  </p>
+</div>
+
+<h2><span class="n">5</span>What was actually run, and whether the answers agree</h2>
+
+<p>
+  Four jobs were submitted from three different control surfaces. The point was not the
+  quality-control result itself but a question about the plumbing: <b>does the answer depend on
+  which surface you use?</b> It should not.
+</p>
+
+<figure>
+  <div class="fig">
+    <svg viewBox="0 0 1000 350" role="img" aria-labelledby="f5t">
+      <title id="f5t">Four job submissions from three control surfaces converging on identical results</title>
+
+      <text x="20" y="24" font-size="12.5" font-weight="700" fill="#3a4a63">THREE WAYS IN</text>
+
+      <rect x="20" y="38" width="196" height="50" rx="8" fill="#ffffff" stroke="#1a5aa8" stroke-width="1.5"></rect>
+      <text x="118" y="58" font-size="12" font-weight="700" text-anchor="middle" fill="#1c1f26">Claude Code</text>
+      <text x="118" y="76" font-size="10.5" text-anchor="middle" fill="#5b6472">job 803</text>
+
+      <rect x="20" y="100" width="196" height="50" rx="8" fill="#ffffff" stroke="#1a5aa8" stroke-width="1.5"></rect>
+      <text x="118" y="120" font-size="12" font-weight="700" text-anchor="middle" fill="#1c1f26">Web UI, direct route</text>
+      <text x="118" y="138" font-size="10.5" text-anchor="middle" fill="#5b6472">job 804</text>
+
+      <rect x="20" y="162" width="196" height="50" rx="8" fill="#eaf2fb" stroke="#1a5aa8" stroke-width="2"></rect>
+      <text x="118" y="182" font-size="12" font-weight="700" text-anchor="middle" fill="#1a5aa8">harness route</text>
+      <text x="118" y="200" font-size="10.5" text-anchor="middle" fill="#5b6472">jobs 805 and 806</text>
+
+      <!-- funnel -->
+      <path d="M216,63 L296,140" stroke="#5b6472" stroke-width="1.5" fill="none" marker-end="url(#ah)"></path>
+      <path d="M216,125 L296,140" stroke="#5b6472" stroke-width="1.5" fill="none" marker-end="url(#ah)"></path>
+      <path d="M216,187 L296,152" stroke="#1a5aa8" stroke-width="1.8" fill="none" marker-end="url(#ahb)"></path>
+
+      <rect x="302" y="112" width="180" height="72" rx="9" fill="#ffffff" stroke="#2b74c9" stroke-width="1.7"></rect>
+      <text x="392" y="136" font-size="12" font-weight="700" text-anchor="middle" fill="#1c1f26">same REST API</text>
+      <text x="392" y="154" font-size="10.5" text-anchor="middle" fill="#5b6472">same dataset, 2 samples</text>
+      <text x="392" y="170" font-size="10.5" text-anchor="middle" fill="#5b6472">same parameters</text>
+
+      <path d="M482,148 L556,148" stroke="#5b6472" stroke-width="1.5" fill="none" marker-end="url(#ah)"></path>
+
+      <rect x="562" y="112" width="176" height="72" rx="9" fill="#ffffff" stroke="#8a919c" stroke-width="1.5"></rect>
+      <text x="650" y="136" font-size="12" font-weight="700" text-anchor="middle" fill="#1c1f26">the cluster</text>
+      <text x="650" y="154" font-size="10.5" text-anchor="middle" fill="#5b6472">about 5 to 7 minutes</text>
+      <text x="650" y="170" font-size="10.5" text-anchor="middle" fill="#5b6472">real compute, real files</text>
+
+      <path d="M738,148 L806,148" stroke="#5b6472" stroke-width="1.5" fill="none" marker-end="url(#ah)"></path>
+
+      <rect x="812" y="104" width="168" height="88" rx="9" fill="#eaf2fb" stroke="#1a5aa8" stroke-width="2"></rect>
+      <text x="896" y="128" font-size="12" font-weight="700" text-anchor="middle" fill="#1a5aa8">identical output</text>
+      <text x="896" y="147" font-size="10.5" text-anchor="middle" fill="#43494f">31 files, 4.3 MB each</text>
+      <text x="896" y="164" font-size="10.5" text-anchor="middle" fill="#43494f">26 of 26 data files</text>
+      <text x="896" y="181" font-size="10.5" text-anchor="middle" fill="#43494f">byte for byte equal</text>
+
+      <rect x="20" y="216" width="960" height="118" rx="9" fill="#f7f9fc" stroke="#d4d9e0" stroke-width="1"></rect>
+      <text x="36" y="238" font-size="12" font-weight="700" fill="#3a4a63">THE ONLY DIFFERENCES, AND WHY EACH ONE IS EXPECTED</text>
+      <text x="36" y="260" font-size="11.5" fill="#43494f">• the output folder name, which contains the run date — one line of one file</text>
+      <text x="36" y="280" font-size="11.5" fill="#43494f">• timestamps recorded inside archive files and inside the summary report</text>
+      <text x="36" y="300" font-size="11.5" fill="#43494f">• the script name and the two cluster log files, which carry the job number</text>
+      <text x="36" y="322" font-size="11.5" font-weight="700" fill="#1a5aa8">Nothing that a scientist would read differs. The plumbing is interchangeable.</text>
+    </svg>
+  </div>
+  <figcaption>
+    Figure 5 — Four submissions, one result. The comparison was made inside the compressed
+    archives, not on the archives themselves, because an archive records the time each file was
+    written and so can never be byte-identical between two runs.
+  </figcaption>
+</figure>
+
+<table>
+  <caption>The four submissions. Cluster job numbers are given so the runs can be looked up later.</caption>
+  <tr><th>Job</th><th>Submitted from</th><th>Route</th><th>Cluster outcome</th></tr>
+  <tr><td>803</td><td>Claude Code</td><td>tool call, no model in the loop</td><td class="ok">completed</td></tr>
+  <tr><td>804</td><td>Web UI</td><td>direct to the model</td><td class="ok">completed</td></tr>
+  <tr><td>805</td><td>command line</td><td>harness</td><td class="ok">completed</td></tr>
+  <tr><td>806</td><td>Web UI</td><td>harness — the full chain</td><td class="ok">accepted and ran</td></tr>
+</table>
+
+<div class="callout k">
+  <div class="t">One confusing thing about this test node, which is not a fault in the chain</div>
+  <p>
+    fgcz-h-083 runs two copies of the background job daemon, so every job is submitted to the
+    cluster two or three times. Exactly one copy succeeds; the others stop because the output
+    folder already exists. A job row can therefore say <em>failed</em> while its results are
+    complete and correct. Judge a run by the cluster accounting record and by the output folder,
+    never by the row alone. This is a known condition of the test node and does not exist in
+    production.
+  </p>
+</div>
+
+<h2><span class="n">6</span>How to operate it</h2>
+
+<p>
+  Both long-running pieces are held in detached terminal sessions, so they survive the person who
+  started them logging out. Neither is a system service yet; that is deliberate for a prototype.
+</p>
+
+<figure>
+  <div class="fig">
+    <svg viewBox="0 0 1000 300" role="img" aria-labelledby="f6t">
+      <title id="f6t">What runs where, on which port, and which parts already existed</title>
+
+      <text x="20" y="24" font-size="12.5" font-weight="700" fill="#3a4a63">ON fgcz-h-083</text>
+
+      <rect x="20" y="38" width="300" height="100" rx="9" fill="#eaf2fb" stroke="#1a5aa8" stroke-width="2"></rect>
+      <text x="170" y="62" font-size="13" font-weight="700" text-anchor="middle" fill="#1a5aa8">NEW IN THIS PROTOTYPE</text>
+      <text x="36" y="86" font-size="11.5" fill="#43494f">Web UI — port 8770, open to the network,</text>
+      <text x="36" y="104" font-size="11.5" fill="#43494f">key required. Session name: kairos-agent</text>
+      <text x="36" y="126" font-size="11.5" fill="#43494f">Harness — port 8642, loopback, bearer required</text>
+
+      <rect x="336" y="38" width="300" height="100" rx="9" fill="#f7f9fc" stroke="#8a919c" stroke-width="1.5"></rect>
+      <text x="486" y="62" font-size="13" font-weight="700" text-anchor="middle" fill="#43494f">ALREADY EXISTED</text>
+      <text x="352" y="86" font-size="11.5" fill="#43494f">Omics-Studio REST API — port 3010</text>
+      <text x="352" y="104" font-size="11.5" fill="#43494f">Omics-Studio web front end — port 4000</text>
+      <text x="352" y="126" font-size="11.5" fill="#43494f">Background job daemon, then the cluster</text>
+
+      <rect x="652" y="38" width="328" height="100" rx="9" fill="#f7f9fc" stroke="#8a919c" stroke-width="1.5"></rect>
+      <text x="816" y="62" font-size="13" font-weight="700" text-anchor="middle" fill="#43494f">ELSEWHERE ON THE NETWORK</text>
+      <text x="668" y="86" font-size="11.5" fill="#43494f">The on-premises model server, fgcz-c-056</text>
+      <text x="668" y="104" font-size="11.5" fill="#43494f">gStore, where results are published</text>
+      <text x="668" y="126" font-size="11.5" fill="#43494f">The compute cluster itself</text>
+
+      <rect x="20" y="156" width="960" height="60" rx="9" fill="#ffffff" stroke="#d4d9e0" stroke-width="1"></rect>
+      <text x="36" y="178" font-size="12" font-weight="700" fill="#3a4a63">HOW TO GET IN</text>
+      <text x="36" y="200" font-size="11.5" fill="#43494f">Open the Web UI address with the key appended to the URL. The key is then remembered for that browser session only.</text>
+
+      <rect x="20" y="232" width="960" height="52" rx="9" fill="#fdf2e3" stroke="#cf7a00" stroke-width="1.2"></rect>
+      <text x="36" y="254" font-size="12" font-weight="700" fill="#7a4900">NOT YET DONE</text>
+      <text x="36" y="273" font-size="11.5" fill="#7a4900">No automatic restart after a reboot, no log rotation, no memory limit on the long-lived tool server. See the next section.</text>
+    </svg>
+  </div>
+  <figcaption>
+    Figure 6 — Only the two blue items were created by this work. Everything else is existing
+    infrastructure that the prototype reuses rather than replaces.
+  </figcaption>
+</figure>
+
+<pre><code># Start or restart the harness
+screen -S hermes-gateway -X quit
+screen -dmS hermes-gateway -L -Logfile /tmp/hermes_gateway_8642.screenlog \
+       bash /srv/sushi/kairos_agent_server_dev/run_hermes_gateway.sh
+
+# Start or restart the Web UI
+screen -S kairos-agent -X quit
+cd /srv/sushi/kairos_agent_server_dev
+screen -dmS kairos-agent -L -Logfile /tmp/kairos_agent_8770.screenlog bash run.sh
+
+# Is everything healthy? Reports both routes and the tool server in one call.
+curl -H "Authorization: Bearer $UI_TOKEN" http://127.0.0.1:8770/api/health</code></pre>
+
+<h2><span class="n">7</span>The use case that comes next</h2>
+
+<p>
+  A meeting on 2026-09-10 fixed the next target. <b>None of this section is implemented.</b> It is
+  written down here so that the shape of the work is visible before anyone plans it, and because
+  two questions have to be answered before the rest can even be estimated.
+</p>
+
+<p>
+  The sequence starts with something that already happens every day. When quality control for an
+  order is finished, a member of staff opens B-Fabric — the FGCZ database that holds orders and
+  samples — and sets that order's status to <code>processed</code>. Today nothing downstream reacts
+  to that. The use case is that OMAKASE reacts to it.
+</p>
+
+<figure>
+  <div class="fig">
+    <svg viewBox="0 0 1000 390" role="img" aria-labelledby="f7t">
+      <title id="f7t">From a finished order to a running pipeline, with the two unanswered questions marked</title>
+
+      <text x="16" y="34" font-size="12" font-weight="700" fill="#3a4a63">FROM A FINISHED ORDER TO A RUNNING PIPELINE</text>
+
+      <!-- step 1: happens today, in B-Fabric -->
+      <rect x="16" y="64" width="136" height="76" rx="9" fill="#ffffff" stroke="#1a5aa8" stroke-width="1.6"></rect>
+      <text x="84" y="88" font-size="12.5" font-weight="700" text-anchor="middle" fill="#1c1f26">B-Fabric order</text>
+      <text x="84" y="106" font-size="10.5" text-anchor="middle" fill="#5b6472">status set to</text>
+      <text x="84" y="122" font-size="10.5" text-anchor="middle" fill="#5b6472">"processed", by a person</text>
+
+      <!-- step 2: OPEN QUESTION -->
+      <rect x="180" y="64" width="136" height="76" rx="9" fill="#fdf2e3" stroke="#cf7a00" stroke-width="1.6" stroke-dasharray="5 4"></rect>
+      <text x="248" y="88" font-size="12.5" font-weight="700" text-anchor="middle" fill="#1c1f26">1  Detection</text>
+      <text x="248" y="106" font-size="10.5" text-anchor="middle" fill="#8a5b00">poll it, or be told?</text>
+      <text x="248" y="122" font-size="10.5" font-weight="700" text-anchor="middle" fill="#a06000">NOT INVESTIGATED</text>
+
+      <rect x="344" y="64" width="136" height="76" rx="9" fill="#f7f8fa" stroke="#8a919c" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+      <text x="412" y="88" font-size="12.5" font-weight="700" text-anchor="middle" fill="#6b7280">Pipeline choice</text>
+      <text x="412" y="106" font-size="10.5" text-anchor="middle" fill="#8a919c">from the order metadata</text>
+      <text x="412" y="122" font-size="10.5" text-anchor="middle" fill="#8a919c">existing Apps only</text>
+
+      <rect x="508" y="64" width="136" height="76" rx="9" fill="#f7f8fa" stroke="#8a919c" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+      <text x="576" y="88" font-size="12.5" font-weight="700" text-anchor="middle" fill="#6b7280">Proposal</text>
+      <text x="576" y="106" font-size="10.5" text-anchor="middle" fill="#8a919c">to a bioinformatician</text>
+      <text x="576" y="122" font-size="10.5" text-anchor="middle" fill="#8a919c">with its reasons</text>
+
+      <!-- step 5: the human gate -->
+      <rect x="672" y="64" width="136" height="76" rx="9" fill="#eaf2fb" stroke="#1a5aa8" stroke-width="2" stroke-dasharray="5 4"></rect>
+      <text x="740" y="88" font-size="12.5" font-weight="700" text-anchor="middle" fill="#1c1f26">Approval</text>
+      <text x="740" y="106" font-size="10.5" text-anchor="middle" fill="#1a5aa8">the human gate</text>
+      <text x="740" y="122" font-size="10.5" font-weight="700" text-anchor="middle" fill="#1a5aa8">nothing runs before it</text>
+
+      <rect x="836" y="64" width="136" height="76" rx="9" fill="#f7f8fa" stroke="#8a919c" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+      <text x="904" y="88" font-size="12.5" font-weight="700" text-anchor="middle" fill="#6b7280">Run and manage</text>
+      <text x="904" y="106" font-size="10.5" text-anchor="middle" fill="#8a919c">the whole App chain</text>
+      <text x="904" y="122" font-size="10.5" font-weight="700" text-anchor="middle" fill="#6b7280">new to SUSHI</text>
+
+      <path d="M154,102 L174,102" stroke="#5b6472" stroke-width="1.6" fill="none" marker-end="url(#ah)"></path>
+      <path d="M318,102 L338,102" stroke="#5b6472" stroke-width="1.6" fill="none" marker-end="url(#ah)"></path>
+      <path d="M482,102 L502,102" stroke="#5b6472" stroke-width="1.6" fill="none" marker-end="url(#ah)"></path>
+      <path d="M646,102 L666,102" stroke="#5b6472" stroke-width="1.6" fill="none" marker-end="url(#ah)"></path>
+      <path d="M810,102 L830,102" stroke="#5b6472" stroke-width="1.6" fill="none" marker-end="url(#ah)"></path>
+
+      <!-- the second open question sits under the chain -->
+      <path d="M904,142 L904,176 L576,176 L576,222" stroke="#8a919c" stroke-width="1.6" stroke-dasharray="5 4" fill="none" marker-end="url(#ahn)"></path>
+
+      <rect x="508" y="228" width="136" height="76" rx="9" fill="#fdf2e3" stroke="#cf7a00" stroke-width="1.6" stroke-dasharray="5 4"></rect>
+      <text x="576" y="252" font-size="12.5" font-weight="700" text-anchor="middle" fill="#1c1f26">2  Did it finish?</text>
+      <text x="576" y="270" font-size="10.5" text-anchor="middle" fill="#8a5b00">trigger, or polling?</text>
+      <text x="576" y="286" font-size="10.5" font-weight="700" text-anchor="middle" fill="#a06000">NOT INVESTIGATED</text>
+
+      <rect x="700" y="196" width="160" height="58" rx="9" fill="#f7f8fa" stroke="#8a919c" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+      <text x="780" y="218" font-size="12" font-weight="700" text-anchor="middle" fill="#6b7280">Resubmit</text>
+      <text x="780" y="236" font-size="10.5" text-anchor="middle" fill="#8a919c">if the cause is transient</text>
+
+      <rect x="700" y="276" width="160" height="58" rx="9" fill="#f7f8fa" stroke="#8a919c" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+      <text x="780" y="298" font-size="12" font-weight="700" text-anchor="middle" fill="#6b7280">Stop and notify</text>
+      <text x="780" y="316" font-size="10.5" text-anchor="middle" fill="#8a919c">if it is anything else</text>
+
+      <path d="M646,262 L694,232" stroke="#8a919c" stroke-width="1.6" stroke-dasharray="5 4" fill="none" marker-end="url(#ahn)"></path>
+      <path d="M646,278 L694,300" stroke="#8a919c" stroke-width="1.6" stroke-dasharray="5 4" fill="none" marker-end="url(#ahn)"></path>
+
+      <text x="576" y="326" font-size="10.5" text-anchor="middle" fill="#5b6472">on success: the next App starts</text>
+
+      <rect x="20" y="356" width="16" height="11" rx="3" fill="#eaf2fb" stroke="#1a5aa8" stroke-width="1.4"></rect>
+      <text x="44" y="366" font-size="11" fill="#43494f">exists today</text>
+      <rect x="300" y="356" width="16" height="11" rx="3" fill="#f7f8fa" stroke="#8a919c" stroke-width="1.4" stroke-dasharray="4 3"></rect>
+      <text x="324" y="366" font-size="11" fill="#43494f">to be built, shape understood</text>
+      <rect x="610" y="356" width="16" height="11" rx="3" fill="#fdf2e3" stroke="#cf7a00" stroke-width="1.4" stroke-dasharray="4 3"></rect>
+      <text x="634" y="366" font-size="11" fill="#43494f">must be answered first</text>
+    </svg>
+  </div>
+  <figcaption>
+    Figure 7 &mdash; The use case agreed on 2026-09-10. Solid blue happens today; dashed grey has to be built and its shape is understood; dashed amber marks the two questions that have to be answered before the rest can be planned.
+  </figcaption>
+</figure>
+
+<div class="stack">
+  <div class="layer hd"><div class="id">#</div><div class="q">Step</div><div class="who">What it means in practice</div><div class="st">State</div></div>
+  <div class="layer">
+    <div class="id">1</div>
+    <div class="q"><b>A finished order becomes visible</b></div>
+    <div class="who">Either OMAKASE asks B-Fabric on a timer whether anything became <code>processed</code>, or B-Fabric tells OMAKASE when it happens. Which of the two is possible is the first open question.</div>
+    <div class="st todo">question 1</div>
+  </div>
+  <div class="layer">
+    <div class="id">2</div>
+    <div class="q"><b>A pipeline is chosen from the order metadata</b></div>
+    <div class="who">The species, the library type and the sequencing application decide which Apps apply. <b>OMAKASE never writes an App.</b> It selects from the catalogue that already exists and puts the Apps in an order.</div>
+    <div class="st todo">not started</div>
+  </div>
+  <div class="layer">
+    <div class="id">3</div>
+    <div class="q"><b>The chain is proposed to a bioinformatician</b></div>
+    <div class="who">A proposal, not an action: which Apps, in which order, with which parameters, and why each was chosen. The person can accept, change or reject it.</div>
+    <div class="st todo">not started</div>
+  </div>
+  <div class="layer">
+    <div class="id">4</div>
+    <div class="q"><b>Approval, and only then submission</b></div>
+    <div class="who">Nothing is submitted before a person has approved it. This gate is the reason the system can be allowed near real data at all.</div>
+    <div class="st plan">by design</div>
+  </div>
+  <div class="layer">
+    <div class="id">5</div>
+    <div class="q"><b>OMAKASE manages the chain to the end</b></div>
+    <div class="who">Each App is submitted when its inputs are ready, and the outcome of each one is checked. <b>This is the part the existing SUSHI has never done.</b></div>
+    <div class="st todo">not started</div>
+  </div>
+  <div class="layer">
+    <div class="id">6</div>
+    <div class="q"><b>A failure is judged, not just reported</b></div>
+    <div class="who">If a job fails for a transient reason — running out of memory is the obvious one — it is submitted again. If it fails for any other reason, the chain stops and a person is told. How to tell the two apart is the second open question.</div>
+    <div class="st todo">question 2</div>
+  </div>
+</div>
+
+<h3>What is actually new here</h3>
+
+<p>
+  The existing SUSHI runs <b>one App at a time</b>, chosen and launched by a person who then waits,
+  looks at the result and launches the next one. What the meeting asked for is <b>a chain of Apps
+  proposed as a single unit and then carried to the end by the system</b>. That combination step is
+  the capability the existing SUSHI never had, and it is the reason this is worth building rather
+  than scripting.
+</p>
+
+<figure>
+  <div class="fig">
+    <svg viewBox="0 0 1000 370" role="img" aria-labelledby="f8t">
+      <title id="f8t">One worked example of a proposed App chain for an RNA-seq dataset</title>
+
+      <rect x="16" y="100" width="120" height="64" rx="9" fill="#ffffff" stroke="#2b74c9" stroke-width="1.6"></rect>
+      <text x="76" y="126" font-size="12.5" font-weight="700" text-anchor="middle" fill="#1c1f26">RNA-seq dataset</text>
+      <text x="76" y="144" font-size="10.5" text-anchor="middle" fill="#5b6472">the finished order</text>
+
+      <rect x="180" y="20" width="150" height="52" rx="9" fill="#f7f8fa" stroke="#8a919c" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+      <text x="255" y="42" font-size="12.5" font-weight="700" text-anchor="middle" fill="#6b7280">FastQCApp</text>
+      <text x="255" y="60" font-size="10.5" text-anchor="middle" fill="#8a919c">read quality</text>
+
+      <rect x="180" y="88" width="150" height="52" rx="9" fill="#f7f8fa" stroke="#8a919c" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+      <text x="255" y="110" font-size="12.5" font-weight="700" text-anchor="middle" fill="#6b7280">FastqScreenApp</text>
+      <text x="255" y="128" font-size="10.5" text-anchor="middle" fill="#8a919c">contamination check</text>
+
+      <rect x="180" y="156" width="150" height="76" rx="9" fill="#f7f8fa" stroke="#8a919c" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+      <text x="255" y="180" font-size="12.5" font-weight="700" text-anchor="middle" fill="#6b7280">STARApp</text>
+      <text x="255" y="198" font-size="10.5" text-anchor="middle" fill="#8a919c">alignment</text>
+      <text x="255" y="216" font-size="10.5" font-weight="700" text-anchor="middle" fill="#a06000">genome reference from metadata</text>
+
+      <rect x="396" y="168" width="160" height="56" rx="9" fill="#f7f8fa" stroke="#8a919c" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+      <text x="476" y="192" font-size="12.5" font-weight="700" text-anchor="middle" fill="#6b7280">featureCountsApp</text>
+      <text x="476" y="210" font-size="10.5" text-anchor="middle" fill="#8a919c">counts per gene</text>
+
+      <rect x="620" y="136" width="160" height="56" rx="9" fill="#f7f8fa" stroke="#8a919c" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+      <text x="700" y="160" font-size="12.5" font-weight="700" text-anchor="middle" fill="#6b7280">CountQCApp</text>
+      <text x="700" y="178" font-size="10.5" text-anchor="middle" fill="#8a919c">quality of the count matrix</text>
+
+      <rect x="620" y="212" width="160" height="76" rx="9" fill="#f7f8fa" stroke="#8a919c" stroke-width="1.5" stroke-dasharray="5 4"></rect>
+      <text x="700" y="236" font-size="12.5" font-weight="700" text-anchor="middle" fill="#6b7280">EdgeRApp</text>
+      <text x="700" y="254" font-size="10.5" text-anchor="middle" fill="#8a919c">differential expression</text>
+      <text x="700" y="272" font-size="10.5" font-weight="700" text-anchor="middle" fill="#a06000">control vs target proposed</text>
+
+      <path d="M138,118 L174,50" stroke="#5b6472" stroke-width="1.6" fill="none" marker-end="url(#ah)"></path>
+      <path d="M138,130 L174,114" stroke="#5b6472" stroke-width="1.6" fill="none" marker-end="url(#ah)"></path>
+      <path d="M138,146 L174,190" stroke="#5b6472" stroke-width="1.6" fill="none" marker-end="url(#ah)"></path>
+      <path d="M332,194 L390,196" stroke="#5b6472" stroke-width="1.6" fill="none" marker-end="url(#ah)"></path>
+      <path d="M558,186 L614,164" stroke="#5b6472" stroke-width="1.6" fill="none" marker-end="url(#ah)"></path>
+      <path d="M558,206 L614,242" stroke="#5b6472" stroke-width="1.6" fill="none" marker-end="url(#ah)"></path>
+
+      <text x="352" y="70" font-size="10.5" fill="#5b6472">FastQCApp and FastqScreenApp are quality branches:</text>
+      <text x="352" y="88" font-size="10.5" fill="#5b6472">no later App depends on their output.</text>
+
+      <rect x="16" y="304" width="968" height="48" rx="8" fill="#f0f1f4" stroke="#d4d9e0" stroke-width="1"></rect>
+      <text x="34" y="325" font-size="11.5" fill="#43494f">Every box is an App that already exists in SUSHI. OMAKASE selects and orders them; it never writes one.</text>
+      <text x="34" y="342" font-size="11.5" fill="#43494f">The two amber lines are the judgements a person makes today and that the system would have to propose.</text>
+    </svg>
+  </div>
+  <figcaption>
+    Figure 8 &mdash; One worked example, for an RNA-seq dataset. Every box is an App that already exists in SUSHI. The amber lines are the two judgements the system would have to propose.
+  </figcaption>
+</figure>
+
+<p>
+  Two of the boxes in that example carry a judgement rather than a fixed setting, and they are the
+  interesting ones. <b>STARApp</b> needs a reference genome, which has to be derived from the order
+  metadata rather than typed in. <b>EdgeRApp</b> needs to know which samples are the controls and
+  which are the ones being tested — today a person decides that by reading the sample names and the
+  order description, and the system would have to propose it and be corrected when it is wrong.
+</p>
+
+<h3>The two questions that come before any plan</h3>
+
+<div class="callout k">
+  <div class="t">Question 1 — how does OMAKASE learn that an order became <code>processed</code>?</div>
+  <p>
+    Two shapes are possible. <b>Pull:</b> OMAKASE asks B-Fabric on a timer, using bfabricPy, the
+    Python client for that database. <b>Push:</b> something added on the B-Fabric side tells OMAKASE
+    when the status changes. Pull is entirely within our control; push is cheaper to run but depends
+    on what B-Fabric allows us to add. Neither has been investigated. The specific unknown for pull
+    is whether the order status is among the fields bfabricPy actually exposes.
+  </p>
+</div>
+
+<div class="callout k">
+  <div class="t">Question 2 — how does OMAKASE know whether a job finished, and finished correctly?</div>
+  <p>
+    Watching every job continuously does not scale, so the choice is between being told when a job
+    ends and asking periodically. Two complications are already known. First, SUSHI Apps run in two
+    modes — one job per sample, or one job for the whole dataset — so the unit whose success has to
+    be judged is not the same in both. Second, and measured in this very report: on the test node
+    each job is submitted two or three times by a duplicated daemon, exactly one of which completes,
+    so <b>reading the job's status alone gives the wrong answer</b>. Whatever is built has to judge
+    from the results on disk, not only from a status field.
+  </p>
+</div>
+
+<p>
+  One thing this use case does <b>not</b> change: the always-running part that watches for finished
+  orders and moves the chain forward stays plain, ordinary code. The model proposes and explains;
+  it does not hold the timer or the state machine. That is the same design decision recorded at the
+  end of the next section, and this use case was designed to respect it.
+</p>
+
+<h2><span class="n">8</span>What this prototype is not</h2>
+
+<p>
+  Stating the limits plainly is more useful than a longer list of achievements, because the gap
+  between this and a usable service is where the remaining work lives.
+</p>
+
+<div class="stack">
+  <div class="layer hd"><div class="id">&nbsp;</div><div class="q">Limit</div><div class="who">Consequence</div><div class="st">Status</div></div>
+  <div class="layer">
+    <div class="id">a</div>
+    <div class="q">The automated analysis itself does not exist</div>
+    <div class="who">This prototype is the control and conversation layer only. Nothing yet decides on its own that a finished order should be analysed, or which analysis to choose. Section 7 sets out exactly what that would take.</div>
+    <div class="st todo">not started</div>
+  </div>
+  <div class="layer">
+    <div class="id">b</div>
+    <div class="q">The analysis recipes need a bioinformatician</div>
+    <div class="who">By standing decision the recipe catalogue is written by hand, never generated. It is the real blocker for the wider project, and no agent can remove it.</div>
+    <div class="st todo">needs a person</div>
+  </div>
+  <div class="layer">
+    <div class="id">c</div>
+    <div class="q">The harness may run shell commands, and this was never measured</div>
+    <div class="who">Configuration says the capability is on. No test has confirmed it. Until someone runs that check, treat the capability as present but unproven.</div>
+    <div class="st todo">unverified</div>
+  </div>
+  <div class="layer">
+    <div class="id">d</div>
+    <div class="q">The long-lived tool server grows in memory</div>
+    <div class="who">Measured previously at 38 MB when fresh and about 4.4 GB after five hours of use. No recycling is implemented, so unattended operation is not yet safe.</div>
+    <div class="st todo">open risk</div>
+  </div>
+  <div class="layer">
+    <div class="id">e</div>
+    <div class="q">Production has never been written to by this chain</div>
+    <div class="who">Correct for now, and deliberate. Every job in this report ran on the test database. Moving to production is a separate decision with its own preparation.</div>
+    <div class="st plan">by design</div>
+  </div>
+  <div class="layer">
+    <div class="id">f</div>
+    <div class="q">The code is not committed to version control</div>
+    <div class="who">The prototype lives in an untracked directory. It should be reviewed and committed before anyone depends on it.</div>
+    <div class="st todo">to do</div>
+  </div>
+</div>
+
+<div class="callout">
+  <div class="t">One design decision that this work respects and should keep respecting</div>
+  <p>
+    The always-running part of the future system stays plain, ordinary code. Triggers, timers and
+    state machines are not given to an agent, because then the order in which things happen would
+    depend on a model's judgement and the system could no longer be said to be reproducible. The
+    harness introduced here is the control and conversation layer only. It holds no timer and no
+    state machine, and that separation is what keeps the earlier design decision intact.
+  </p>
+</div>
+
+<h2><span class="n">9</span>Summary</h2>
+
+<p>
+  A person can now type a request in a browser, or ask from Claude Code, and a real analysis job
+  starts on the cluster, having passed through an agent harness, an on-premises model, a
+  hundred-tool action server and the production REST API. Four jobs prove it, three different
+  entry points give byte-identical scientific output, five independent gates stand between a
+  request and a database write, and the live production database was not touched once.
+</p>
+<p>
+  What remains is not plumbing. It is the analysis logic itself — which finished orders deserve
+  attention, and which recipe each one should get — and that needs domain expertise rather than
+  more engineering.
+</p>
+<p>
+  Section 7 turns that into a concrete target: an order marked <code>processed</code> in B-Fabric
+  leads to a chain of existing SUSHI Apps being proposed to a bioinformatician, and, once approved,
+  being carried to the end by the system. <b>Proposing and managing a chain rather than a single App
+  is the capability the existing SUSHI never had</b>, and it is what makes this worth building.
+  Before any of it can be planned, two questions need answers: how OMAKASE learns that an order
+  became <code>processed</code>, and how it learns whether a job finished correctly. Neither has
+  been investigated yet.
+</p>
+
+<footer>
+  <p>
+    OMAKASE system prototype — control chain report, written 2026-09-09 on fgcz-h-083.
+    Every number in this document was measured on that day; nothing is projected or estimated
+    unless the text says so.
+  </p>
+  <p>
+    <b>This file has not yet been opened in a browser.</b> There is no graphical browser on the
+    FGCZ analysis nodes, so the figures were checked by a script that parses them rather than by
+    eye. Please view it once and report anything that looks wrong.
+  </p>
+  <p>A Japanese edition of this report exists with identical figures: <code>omakase-prototype-20260909-ja.html</code></p>
+</footer>
+
+</div>
+</body>
+</html>
