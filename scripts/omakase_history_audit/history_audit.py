@@ -129,6 +129,28 @@ def order_metadata(order_ids, env: str) -> dict[int, dict]:
     return out
 
 
+# Apps whose presence is routine delivery QC rather than a chosen analysis. Excluding
+# them is the difference between a meaningful concentration number and a misleading one:
+# 534 of 960 orders in the 2026-09-10 production run had nothing else.
+QC_APPS = {"FastqcApp", "FastqScreenApp", "Fastqc10xApp", "FastqScreen10xApp"}
+
+
+def shape(apps, drop_qc: bool = False) -> str:
+    """`{A,B} => {C}` -- braces are one depth, so parallel and sequential are not confused.
+
+    An earlier version joined everything with `->`, which printed 431 orders that ran
+    FastqScreen and Fastqc *side by side on the delivered data* as if one fed the other.
+    """
+    from collections import defaultdict as _dd
+    levels = _dd(set)
+    for depth, app in apps:
+        if drop_qc and app in QC_APPS:
+            continue
+        levels[depth].add(app)
+    return " => ".join("{" + ",".join(sorted(levels[d])) + "}"
+                       for d in sorted(levels) if levels[d])
+
+
 def report(by_order, meta, min_orders: int = 5) -> None:
     # ---- question 1: does chaining happen at all?
     depth_hist = Counter()
@@ -151,8 +173,7 @@ def report(by_order, meta, min_orders: int = 5) -> None:
         m = meta.get(oid)
         if not m:
             continue
-        path = " -> ".join(a for _, a in sorted(set(apps)))
-        seq_by_st[m["service_type_name"]][path] += 1
+        seq_by_st[m["service_type_name"]][shape(apps)] += 1
 
     print("\n=== 2. Is the App sequence predictable from the service type? ===")
     print(f"{'service type':<44} {'orders':>7} {'distinct':>9} {'top-1':>7} {'top-3':>7}")

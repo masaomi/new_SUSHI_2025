@@ -33,9 +33,29 @@ CREATE TABLE IF NOT EXISTS candidates (
     recipe_id         TEXT    NOT NULL,
     recipe_version    TEXT    NOT NULL,
     state             TEXT    NOT NULL,
+    -- PROPOSE or CONTROL. A control candidate is deliberately never proposed on, so that
+    -- the loop can later tell what people do unaided. Without it, every later measurement
+    -- is measuring OMAKASE's own influence and cannot notice that it is.
+    arm               TEXT    NOT NULL DEFAULT 'PROPOSE',
     created_at        TEXT    NOT NULL,
     updated_at        TEXT    NOT NULL,
     UNIQUE(order_id, input_dataset_id, recipe_id, recipe_version)
+);
+
+-- The label the history alone cannot give. Execution history says what was RUN; only a
+-- human's verdict says what SHOULD have run. Three values on purpose: an unchanged
+-- acceptance is weaker evidence than a chain someone bothered to edit into shape, and
+-- collapsing them to a boolean throws that difference away.
+CREATE TABLE IF NOT EXISTS verdicts (
+    id                  INTEGER PRIMARY KEY,
+    candidate_id        INTEGER NOT NULL REFERENCES candidates(id),
+    verdict             TEXT    NOT NULL,   -- ACCEPTED | EDITED | REJECTED
+    actor               TEXT    NOT NULL,
+    proposed_steps_json TEXT    NOT NULL,   -- what OMAKASE offered
+    final_steps_json    TEXT,               -- what the human settled on; NULL if rejected
+    evidence_json       TEXT,               -- the counted frequency shown at proposal time
+    note                TEXT,
+    at                  TEXT    NOT NULL
 );
 
 -- The audit trail for layer 0: exactly which order fields were read.
@@ -93,6 +113,13 @@ CREATE INDEX IF NOT EXISTS idx_submissions_cand ON submissions(candidate_id, ste
 
 # Candidate states. The first four are v0.3 §10 unchanged; the last three are the
 # delta's stepped-chain states.
+ARM_PROPOSE = "PROPOSE"
+ARM_CONTROL = "CONTROL"
+
+VERDICT_ACCEPTED = "ACCEPTED"
+VERDICT_EDITED = "EDITED"
+VERDICT_REJECTED = "REJECTED"
+
 DETECTED = "DETECTED"
 PARAMS_OK = "PARAMS_OK"
 PROPOSED = "PROPOSED"
@@ -136,6 +163,7 @@ class Store:
     def upsert_candidate(
         self, order_id: int, input_dataset_id: int, recipe_id: str,
         recipe_version: str, project_number: int | None = None,
+        arm: str = ARM_PROPOSE,
     ) -> tuple[int, bool]:
         """Return (candidate_id, created). Re-detection returns created=False.
 
@@ -152,10 +180,10 @@ class Store:
         ts = now_iso()
         cur = self.db.execute(
             "INSERT INTO candidates (order_id, project_number, input_dataset_id, "
-            "recipe_id, recipe_version, state, created_at, updated_at) "
-            "VALUES (?,?,?,?,?,?,?,?)",
+            "recipe_id, recipe_version, state, arm, created_at, updated_at) "
+            "VALUES (?,?,?,?,?,?,?,?,?)",
             (order_id, project_number, input_dataset_id, recipe_id, recipe_version,
-             DETECTED, ts, ts),
+             DETECTED, arm, ts, ts),
         )
         cid = int(cur.lastrowid)
         self.record_transition(cid, None, DETECTED, actor="order_watch",
@@ -272,3 +300,27 @@ class Store:
     def latest_submission(self, candidate_id: int, step_seq: int) -> sqlite3.Row | None:
         rows = self.submissions(candidate_id, step_seq)
         return rows[-1] if rows else None
+
+    # ---------------------------------------------------------------- verdicts
+
+    def record_verdict(self, candidate_id: int, verdict: str, actor: str,
+                       proposed_steps, final_steps=None, evidence=None,
+                       note: str | None = None) -> int:
+        """The human's judgement on a proposal. Append-only, like transitions."""
+        if verdict not in (VERDICT_ACCEPTED, VERDICT_EDITED, VERDICT_REJECTED):
+            raise ValueError(f"verdict must be one of ACCEPTED/EDITED/REJECTED, got {verdict}")
+        cur = self.db.execute(
+            "INSERT INTO verdicts (candidate_id, verdict, actor, proposed_steps_json, "
+            "final_steps_json, evidence_json, note, at) VALUES (?,?,?,?,?,?,?,?)",
+            (candidate_id, verdict, actor, json.dumps(proposed_steps, default=str),
+             json.dumps(final_steps, default=str) if final_steps is not None else None,
+             json.dumps(evidence, default=str) if evidence is not None else None,
+             note, now_iso()),
+        )
+        return int(cur.lastrowid)
+
+    def verdicts(self, candidate_id: int | None = None) -> list[sqlite3.Row]:
+        if candidate_id is None:
+            return list(self.db.execute("SELECT * FROM verdicts ORDER BY id"))
+        return list(self.db.execute(
+            "SELECT * FROM verdicts WHERE candidate_id=? ORDER BY id", (candidate_id,)))

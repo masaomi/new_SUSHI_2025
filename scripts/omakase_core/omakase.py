@@ -27,18 +27,21 @@ import json
 import os
 import sys
 import time
+
+import yaml
 from pathlib import Path
 
 if __package__ in (None, ""):  # allow `python omakase.py` as well as `-m`
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     __package__ = "omakase_core"
 
-from . import recipes, store as S           # noqa: E402
+from . import evidence, recipes, store as S  # noqa: E402
 from .runner import ChainRunner             # noqa: E402
 from .sushi import SushiClient              # noqa: E402
 
 DEFAULT_STORE = Path.home() / ".omakase" / "omakase.sqlite3"
 DEFAULT_EVENTS = Path.home() / ".omakase" / "events"
+DEFAULT_HISTORY = Path.home() / ".omakase" / "audit" / "shapes_by_service_type.json"
 DEFAULT_BASE_URL = "http://fgcz-h-083.fgcz-net.unizh.ch:3010"
 MCP_JSON = Path("/srv/sushi/masa_test_new_sushi_20260527/.mcp.json")
 
@@ -72,12 +75,18 @@ def cmd_ingest(args, st: S.Store) -> int:
     order_id = int(order["id"])
 
     recipe = recipes.select(order, args.recipe)
+    # Deterministic, not random: the same order always lands in the same arm, so a rerun
+    # cannot quietly move it. A control candidate is never proposed on, which is the only
+    # way to later notice that OMAKASE has started influencing what people choose.
+    arm = (S.ARM_CONTROL if args.control_every and order_id % args.control_every == 0
+           else S.ARM_PROPOSE)
     cid, created = st.upsert_candidate(
         order_id=order_id,
         input_dataset_id=args.dataset,
         recipe_id=recipe["id"],
         recipe_version=str(recipe["version"]),
         project_number=(order.get("project") or {}).get("id"),
+        arm=arm,
     )
     if not created:
         print(f"candidate {cid} already exists for order {order_id} / dataset "
@@ -87,14 +96,42 @@ def cmd_ingest(args, st: S.Store) -> int:
     st.set_order_params(cid, {k: order.get(k) for k in KEPT_ORDER_FIELDS if k in order})
     st.set_state(cid, S.PARAMS_OK, actor="omakase-core",
                  reason=f"allow-listed order fields recorded ({len(order)} available)")
+    if arm == S.ARM_CONTROL:
+        st.set_state(cid, S.SKIPPED, actor="omakase-core",
+                     reason="control arm: deliberately not proposed on, so that what "
+                            "people choose unaided stays observable")
+        print(f"candidate {cid}: order {order_id} is in the CONTROL arm — no proposal made")
+        return 0
+
     st.set_steps(cid, recipe["steps"])
+    ev = _evidence_for(st, cid, order, args.history)
     st.set_state(cid, S.PROPOSED, actor="omakase-core",
                  reason=f"recipe {recipe['id']}@{recipe['version']}, "
-                        f"{len(recipe['steps'])} steps")
+                        f"{len(recipe['steps'])} steps; {evidence.describe(ev)}")
     print(f"candidate {cid}: order {order_id}, dataset {args.dataset}, "
           f"recipe {recipe['id']}@{recipe['version']} -> PROPOSED")
+    print(f"  evidence: {evidence.describe(ev)}")
     _print_candidate(st, cid)
     return 0
+
+
+def _evidence_for(st: S.Store, cid: int, order: dict, history_path) -> dict | None:
+    """Counted frequency for the proposed chain. Returns None when nothing is known.
+
+    No model is consulted. The number is a fraction with its denominator, because the
+    measured top-1 over real analysis is 17% weighted and 8% for NGS -- a bare percentage
+    from a model would be believed and would be wrong.
+    """
+    try:
+        hist = evidence.History(history_path)
+    except OSError:
+        return None
+    if not hist.by_service:
+        return None
+    st_id = (order.get("servicetype") or {}).get("id")
+    if st_id is None:
+        return None
+    return hist.lookup(st_id, evidence.shape(st.steps(cid)))
 
 
 def _print_candidate(st: S.Store, cid: int) -> None:
@@ -137,15 +174,87 @@ def cmd_show(args, st: S.Store) -> int:
     return 0
 
 
-def cmd_approve(args, st: S.Store) -> int:
-    cand = st.candidate(args.candidate)
+def _require_proposed(st: S.Store, cid: int):
+    cand = st.candidate(cid)
     if cand is None:
-        raise SystemExit(f"no candidate {args.candidate}")
+        raise SystemExit(f"no candidate {cid}")
     if cand["state"] != S.PROPOSED:
-        raise SystemExit(f"candidate {args.candidate} is {cand['state']}, not PROPOSED")
+        raise SystemExit(f"candidate {cid} is {cand['state']}, not PROPOSED")
+    return cand
+
+
+def cmd_approve(args, st: S.Store) -> int:
+    """Accepted unchanged. The weakest of the three labels, and recorded as such."""
+    _require_proposed(st, args.candidate)
+    proposed = st.steps(args.candidate)
+    st.record_verdict(args.candidate, S.VERDICT_ACCEPTED, args.actor,
+                      proposed_steps=proposed, final_steps=proposed, note=args.reason)
     st.set_state(args.candidate, S.APPROVED, actor=args.actor,
-                 reason=args.reason or "approved by a human")
-    print(f"candidate {args.candidate} APPROVED by {args.actor}")
+                 reason=args.reason or "accepted unchanged")
+    print(f"candidate {args.candidate} APPROVED unchanged by {args.actor} "
+          f"(verdict ACCEPTED recorded)")
+    return 0
+
+
+def cmd_revise(args, st: S.Store) -> int:
+    """Edited into shape, then approved. The most informative label of the three.
+
+    An unchanged acceptance can mean "correct" or "not worth the effort to change".
+    A chain someone edited says what they actually wanted, which is the label execution
+    history alone can never supply.
+    """
+    _require_proposed(st, args.candidate)
+    proposed = st.steps(args.candidate)
+    with open(args.steps, encoding="utf-8") as fh:
+        final = yaml.safe_load(fh)
+    final = final["steps"] if isinstance(final, dict) and "steps" in final else final
+    if not isinstance(final, list) or not final:
+        raise SystemExit(f"{args.steps} must hold a list of steps, or a mapping with 'steps'")
+    st.set_steps(args.candidate, final)
+    st.record_verdict(args.candidate, S.VERDICT_EDITED, args.actor,
+                      proposed_steps=proposed, final_steps=st.steps(args.candidate),
+                      note=args.reason)
+    st.set_state(args.candidate, S.APPROVED, actor=args.actor,
+                 reason=args.reason or f"edited from {len(proposed)} to {len(final)} steps, "
+                                       f"then approved")
+    print(f"candidate {args.candidate} EDITED and APPROVED by {args.actor}")
+    _print_candidate(st, args.candidate)
+    return 0
+
+
+def cmd_reject(args, st: S.Store) -> int:
+    _require_proposed(st, args.candidate)
+    st.record_verdict(args.candidate, S.VERDICT_REJECTED, args.actor,
+                      proposed_steps=st.steps(args.candidate), note=args.reason)
+    st.set_state(args.candidate, S.CANCELLED, actor=args.actor,
+                 reason=args.reason or "rejected by a human")
+    print(f"candidate {args.candidate} REJECTED by {args.actor}")
+    return 0
+
+
+def cmd_labels(args, st: S.Store) -> int:
+    """What the loop has accumulated. Counts only -- no model, no prediction."""
+    rows = st.verdicts()
+    if not rows:
+        print("no verdicts recorded yet")
+    else:
+        tally = {}
+        for r in rows:
+            tally[r["verdict"]] = tally.get(r["verdict"], 0) + 1
+        total = len(rows)
+        print(f"{total} verdict(s) recorded")
+        for v in (S.VERDICT_ACCEPTED, S.VERDICT_EDITED, S.VERDICT_REJECTED):
+            n = tally.get(v, 0)
+            print(f"  {v:<9} {n:>4}/{total}  {n / total:>5.0%}")
+        print("\n  an unchanged ACCEPTED is the weakest signal: it can mean 'correct' or")
+        print("  'not worth changing'. EDITED says what was actually wanted.")
+    arms = {}
+    for c in st.candidates():
+        arms[c["arm"]] = arms.get(c["arm"], 0) + 1
+    print(f"\narms: " + ", ".join(f"{k}={v}" for k, v in sorted(arms.items())))
+    if arms.get(S.ARM_CONTROL, 0) == 0:
+        print("  WARNING: no control candidates. Without an arm that is never proposed on,")
+        print("  a later measurement cannot tell science from OMAKASE's own influence.")
     return 0
 
 
@@ -184,6 +293,10 @@ def main() -> int:
                    help="the SUSHI input dataset id. Resolving it from the order is not "
                         "in this slice, so it is given explicitly")
     p.add_argument("--recipe", default=None)
+    p.add_argument("--history", type=Path, default=DEFAULT_HISTORY,
+                   help="the history audit TSV, for counted evidence")
+    p.add_argument("--control-every", type=int, default=0,
+                   help="put every Nth order id in the control arm (0 = off)")
     p.set_defaults(fn=cmd_ingest)
 
     p = sub.add_parser("show")
@@ -191,11 +304,28 @@ def main() -> int:
     p.add_argument("--state")
     p.set_defaults(fn=cmd_show)
 
-    p = sub.add_parser("approve", help="the human gate; nothing runs before it")
+    p = sub.add_parser("approve", help="accept the proposal unchanged (verdict ACCEPTED)")
     p.add_argument("--candidate", type=int, required=True)
     p.add_argument("--actor", required=True)
     p.add_argument("--reason")
     p.set_defaults(fn=cmd_approve)
+
+    p = sub.add_parser("revise", help="edit the chain, then approve (verdict EDITED)")
+    p.add_argument("--candidate", type=int, required=True)
+    p.add_argument("--actor", required=True)
+    p.add_argument("--steps", required=True,
+                   help="YAML holding the corrected steps, or a mapping with 'steps'")
+    p.add_argument("--reason")
+    p.set_defaults(fn=cmd_revise)
+
+    p = sub.add_parser("reject", help="refuse the proposal (verdict REJECTED)")
+    p.add_argument("--candidate", type=int, required=True)
+    p.add_argument("--actor", required=True)
+    p.add_argument("--reason")
+    p.set_defaults(fn=cmd_reject)
+
+    p = sub.add_parser("labels", help="what the feedback loop has accumulated")
+    p.set_defaults(fn=cmd_labels)
 
     p = sub.add_parser("run", help="drive the chain, one step at a time")
     p.add_argument("--candidate", type=int, required=True)
