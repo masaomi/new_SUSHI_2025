@@ -35,7 +35,7 @@ if __package__ in (None, ""):  # allow `python omakase.py` as well as `-m`
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     __package__ = "omakase_core"
 
-from . import evidence, recipes, store as S  # noqa: E402
+from . import evidence, gate, recipes, store as S  # noqa: E402
 from .runner import ChainRunner             # noqa: E402
 from .sushi import SushiClient              # noqa: E402
 
@@ -282,6 +282,13 @@ def cmd_recipes(args, st: S.Store) -> int:
     return 0
 
 
+def cmd_gate(args, st: S.Store) -> int:
+    """Phase 2. Has OMAKASE earned the right to have a model in the loop yet?"""
+    result = gate.score(st.verdicts(), baseline=args.baseline)
+    print(gate.describe(result))
+    return {gate.PASS: 0, gate.NOT_YET: 1, gate.FAIL: 2}[result["status"]]
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--store", type=Path, default=DEFAULT_STORE)
@@ -326,6 +333,11 @@ def main() -> int:
 
     p = sub.add_parser("labels", help="what the feedback loop has accumulated")
     p.set_defaults(fn=cmd_labels)
+
+    p = sub.add_parser("gate", help="the pre-registered phase-2 gate; rc 0 = PASS")
+    p.add_argument("--baseline", type=float, default=gate.BASELINE_WEIGHTED,
+                   help="override only with a reason; the default was pre-registered")
+    p.set_defaults(fn=cmd_gate)
 
     p = sub.add_parser("run", help="drive the chain, one step at a time")
     p.add_argument("--candidate", type=int, required=True)
