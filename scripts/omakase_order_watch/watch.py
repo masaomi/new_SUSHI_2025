@@ -64,7 +64,10 @@ TRIGGER_STATUS = "processed"
 # Below this the query stops being a considerate use of a shared server. The
 # event is a human setting a status by hand, so minutes of latency cost nothing.
 MIN_INTERVAL_SECONDS = 300
-DEFAULT_INTERVAL_SECONDS = 900
+# One hour, agreed with the user on 2026-09-10 as sufficient: a person sets the
+# status by hand and a bioinformatician approval follows, so detection latency of
+# an hour costs nothing, and this is 24 queries a day against a shared server.
+DEFAULT_INTERVAL_SECONDS = 3600
 
 # A tick that suddenly sees more new orders than this stops and asks for a human.
 # It means the status vocabulary changed, the state file was lost, or --seed was

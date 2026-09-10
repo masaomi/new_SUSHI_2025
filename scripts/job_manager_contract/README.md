@@ -47,7 +47,20 @@ Default checkout is `/srv/sushi/masa_job_manager`. Exit code is 0 only if every 
 
 All 8 cases PASS against the deployed daemon (`/srv/sushi/masa_job_manager/src/scheduler.py`).
 
-Unrelated but relevant when reading job status on fgcz-h-083: **two** job_manager daemons are
-running there, so every job is sbatched twice and one twin fails on the gStore destination
-collision. `jobs.status` is last-writer-wins and therefore unreliable — judge by
-`sacct --allusers` plus the result directory. Needs rdomi/trxcopy to stop the stale one.
+## Job status on fgcz-h-083 — fixed 2026-09-10
+
+Until 2026-09-10 **three** job_manager daemons ran on this node, so every job was sbatched two
+or three times and the losing twins died on the gStore destination collision. `jobs.status` was
+last-writer-wins and a row could read FAILED with a complete result directory.
+
+The two stale daemons (pids 3100452 and 1102272) were killed; **1564657**, running from
+`/srv/sushi/trx_job_manager`, is the only one left. Verified immediately afterwards with job
+**808**: one SLURM submission (375691) instead of three, COMPLETED in 5 m 31 s, and the row
+reads COMPLETED. The job before it, 807, had produced 375324 / 375325 / 375326 in the same
+second and a row that read FAILED although the work had succeeded.
+
+**So `jobs.status` is usable again on this node**, and `COMPLETED` is the agreed signal that a
+step of a chain has finished. Two things are still open: nothing yet *prevents* a second daemon
+starting — a guard has been requested from the job_manager developer and has not shipped, the
+root cause being a lock that tracked one pid per host only — and whether fgcz-h-082 has the same
+duplication has not been checked.
