@@ -1,0 +1,42 @@
+# DISABLED. Kept because it records a trap that cost a live 422 to find.
+#
+# FlashApp looks like a perfect first chain: `GET /api/v1/datasets/9` lists it among 175
+# applicable apps, its `next_dataset` emits `Read1 [File]`, and FastqcApp requires exactly
+# `Name` and `Read1`. So the chain is column-compatible and reads correctly on paper.
+#
+# It cannot be submitted. The backend accepts **18** apps -- one native (`Fastqc`) plus the
+# 17 in `config.legacy_apps_allowlist` -- and FlashApp is not among them. The dataset
+# endpoint answers "which apps could consume these columns"; it does not answer "which apps
+# will this backend run", and the two lists differ by an order of magnitude.
+#
+# The runner now checks `GET /api/v1/application_configs` before submitting, so a recipe
+# naming an unsubmittable app halts with a clear reason instead of a 422. This file is the
+# regression case in prose.
+#
+# `match` deliberately matches nothing, so `select()` can never pick it.
+
+id: flash_then_fastqc
+version: v0-disabled
+description: >
+  DISABLED. FlashApp is column-compatible with dataset 9 but is not in the backend's
+  submittable allow-list. Kept as a record of the difference between the two app lists.
+
+match:
+  disabled: true
+
+steps:
+  - seq: 1
+    app_name: FlashApp        # <- not submittable; the runner will halt here by design
+    depends_on_seq: null
+    parameters:
+      cores: 4
+      ram: 15
+      scratch: 50
+
+  - seq: 2
+    app_name: FastqcApp
+    depends_on_seq: 1
+    parameters:
+      cores: 1
+      ram: 15
+      scratch: 10

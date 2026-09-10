@@ -1,0 +1,66 @@
+# The chain from the 2026-09-10 meeting, written down as far as it can honestly be.
+#
+# The meeting's RNA-seq example was: FastQC and FastqScreen and STAR alignment in
+# parallel, then featureCounts, then CountQC and EdgeR. Every one of those apps is inside
+# the backend's submittable set of 18, so the chain is not hypothetical -- it can be
+# submitted today.
+#
+# It is NOT the default recipe and has NOT been run. Two things are missing, and neither
+# is code:
+#
+#   1. `refBuild`. STAR needs a reference genome, and the meeting's own point was that it
+#      must be derived from the order metadata rather than typed in. `/srv/GT/reference-
+#      favorite` already is that mapping for five curated species -- never invent a
+#      species-to-build policy -- but wiring it in is the recipe engine's job, not the
+#      runner's.
+#   2. A bioinformatician. By standing decision the real catalog is authored by hand and
+#      never generated. The parameters below are placeholders in the literal sense: they
+#      are what an agent guessed, which is exactly what must not ship.
+#
+# Left here so the shape is visible and the runner can be pointed at it the moment those
+# two are answered:  --recipe star_then_featurecounts
+
+id: star_then_featurecounts
+version: v0-draft
+description: >
+  Align reads, then count per gene. DRAFT -- parameters are placeholders and refBuild is
+  unresolved. Do not run against anything that matters.
+
+# Deliberately not `always`, so `select()` never picks this by accident. A real match
+# block reads the order's service type and sequencing application; this one matches
+# nothing until someone writes it.
+match:
+  service_type: TODO
+  sequencing_application: TODO
+
+steps:
+  - seq: 1
+    app_name: STARApp
+    depends_on_seq: null
+    parameters:
+      cores: 8
+      ram: 30
+      scratch: 100
+      # refBuild: resolved from the order's Species. UNSET on purpose -- a wrong genome is
+      # worse than a refused submission.
+    retry_parameters:
+      cores: 8
+      ram: 62
+      scratch: 200
+
+  - seq: 2
+    app_name: FeatureCountsApp
+    depends_on_seq: 1
+    parameters:
+      cores: 4
+      ram: 15
+      scratch: 50
+    retry_parameters:
+      cores: 4
+      ram: 30
+      scratch: 100
+
+  # CountQC and EdgeR come next in the meeting's example. EdgeR additionally needs to know
+  # which samples are controls and which are targets -- the second judgement the meeting
+  # named, and the one a person makes today by reading sample names. Not written here
+  # because guessing it is precisely the failure mode.
