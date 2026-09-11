@@ -2,7 +2,7 @@
 #
 #     FastQC      ┐
 #     FastqScreen ┤ three independent steps, submitted in the same tick
-#     STAR        ┘ ──▶ FeatureCounts ──▶ CountQC
+#     STAR        ┘ ──▶ FeatureCounts          (CountQC removed -- see below)
 #
 # Every app here is inside the backend's submittable 18. Before 2026-09-11 the runner
 # submitted one step per tick, so this shape would have run strictly serially -- the same
@@ -35,11 +35,11 @@
 # FeatureCounts' output provides. The genome is decided once and cannot drift.
 
 id: rnaseq_meeting_shape
-version: v1
+version: v2-no-countqc
 description: >
-  QC and alignment side by side, then counting, then count QC. The reference genome is
-  derived from the dataset's Species column. EdgeR is deliberately absent: its
-  control-versus-target grouping is a judgement nothing here can make.
+  QC and alignment side by side, then counting. The reference genome is derived from the
+  dataset's Species column. EdgeR is deliberately absent: its control-versus-target grouping
+  is a judgement nothing here can make. CountQC is removed for a measured reason, below.
 
 # No `always`, so select() cannot pick it. A real match block reads the order's service
 # type and sequencing application; writing it is a bioinformatician's job.
@@ -103,11 +103,20 @@ steps:
       ram: 40
       scratch: 20
 
-  - seq: 5
-    app_name: CountQCApp
-    depends_on_seq: 4
-    parameters:
-      # cores is a selector offering ['1','2'], ram ['8','12','50'], scratch ['10','20'].
-      cores: 2
-      ram: 12
-      scratch: 20
+# CountQC was step 5 and is removed, with the reason measured rather than guessed.
+#
+# Run live 2026-09-11 on the output of step 4 (2 samples): it read both count files and the
+# derived mouse annotation correctly, then **failed inside the Quarto report** and produced
+# no Count_QC directory. The same app on dataset 785 (**6 samples**) succeeded on 2026-08-06
+# and wrote a full report including `cluster-heatmap-clusterMembers.txt`.
+#
+# So the likely cause is that two samples are too few for the clustering the report builds.
+# `CountQCApp.rb` carries no sample-count guard, so there is no message saying so -- the
+# quarto CLI fails and its own error is not surfaced ("Rerun with quiet = FALSE").
+#
+# Not fixed here: it is a pre-existing defect in the app, not in the chain. It is also not
+# demonstrable on this project, because the only datasets with three or more samples (785
+# and 548) are `A. halleri`, which is not one of the five curated species -- so the genome
+# resolver would refuse them, correctly.
+#
+# Restore this step once CountQC either tolerates two samples or says why it cannot.
