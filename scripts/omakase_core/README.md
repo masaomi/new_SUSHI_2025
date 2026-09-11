@@ -124,6 +124,11 @@ Six cases against a fake backend, because the one that matters cannot be produce
 against a cluster: **a step fails for a non-transient reason and the next step is never
 submitted.** That is what `afterany` gets wrong, and it is why the runner exists.
 
+Both halves are now also proven **live** (2026-09-11, fgcz-h-083): candidate 1 ran
+STAR → FeatureCounts to `DONE`, and candidate 2 — `recipes/acceptance_halt_fixture.yaml`,
+aimed at a genome that does not exist — halted with step 2 never submitted. Details in
+`docs/omakase-prototype-design-delta.md` §F.
+
 `test_reference.py` is 17 cases against a fixture farm, and most of them are refusals. The
 happy path is a dictionary lookup and cannot really break; what can break is a refusal
 quietly becoming a default.

@@ -70,9 +70,21 @@ bearer, so an agent can read datasets and submit jobs without ever holding a pas
 
 ## Two things that will confuse you otherwise
 
-**A job may show as FAILED while its results are correct.** This node runs two job
-daemons, so every job is submitted to SLURM twice and `jobs.status` is last-writer-wins.
-Judge a run by `sacct --allusers` and by the result directory, not by the row.
+**A job status is trustworthy again — but it has a history.** For a long time this node
+ran two job daemons, so every job was submitted to SLURM twice and `jobs.status` was
+last-writer-wins: a row could read FAILED while its result directory was complete. The
+duplicate was stopped and the status has been verified 1:1 twice since (2026-09-10 job 808,
+2026-09-11 jobs 810/811 — one SLURM job each).
+
+It has come back once, within hours, because nothing yet *prevents* a second daemon from
+starting. So if a status looks wrong, count the daemons before believing it:
+
+```bash
+ps -ef | grep start_sushi_jobmanager     # expect exactly one
+```
+
+Two or more means the old behaviour is back; judge that run by `sacct --allusers` and by
+the result directory, and tell Masaomi.
 
 **`403 insufficient_scope` means you signed in without write permission.** Sign in again
 with `--write` (CLI) or the checkbox (UI).

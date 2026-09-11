@@ -176,6 +176,39 @@ human approval in the middle, and the second step starts only after the first re
 chain in `CHAIN_HALTED` with the second step **never submitted** — that is the case
 `afterany` gets wrong, and it is the point of the whole slice.
 
+### MET, 2026-09-11, live on fgcz-h-083
+
+Both halves, against real data, with exactly one job_manager daemon running (counted before
+starting — with two, `jobs.status` is last-writer-wins and the gate the chain rests on lies).
+
+| | happy path | halt case |
+|---|---|---|
+| candidate | 1, `star_then_featurecounts@v1-derived-refbuild` | 2, `acceptance_halt_fixture@v1` |
+| approved by | masaomi, 11:49 | masaomi, 12:01 |
+| step 1 | STAR jobs 810, 811 → dataset 856, **COMPLETED** in 3 min | STAR jobs 814, 815, **FAILED** in 30 s |
+| step 2 | FeatureCounts 812, 813 → dataset 857, submitted **after** step 1 completed | **never submitted** — no submission row exists |
+| end state | `DONE` at 11:59:39 | `CHAIN_HALTED` at 12:02:59 |
+
+The halt was decided by SLURM's own end state (377097/377098 = `FAILED`), which is not in
+the transient set, so no retry was spent. Nothing relied on `afterany`.
+
+**The genome was derived, not typed in.** Dataset 9's `Species` column says `Mus musculus`;
+`/srv/GT/reference-favorite` carries exactly one mouse build; the proposal shown to the
+approver already read
+`Mus_musculus/GENCODE/GRCm39/Annotation/Release_M37-2025-07-03`. That it was the *right*
+genome is visible in the result rather than asserted: **42 752 reads assigned across 6 795
+genes** out of 100 000, with `ENSMUSG` identifiers. The 2026-08-07 chain test used an
+Arabidopsis build on this same mouse dataset as a speed fixture, and would have produced
+near-zero counts here.
+
+Step 2 was given no `refBuild` and needed none — STAR's output dataset 856 carries
+`Species`, `refBuild`, `paired` and `strandMode` as columns, and `FeatureCountsApp.rb:59`
+reads them. Verified on 856.
+
+**Also measured, incidentally:** one SUSHI job produced exactly one SLURM job in all six
+submissions (810→377077, 811→377078, 814→377097, 815→377098, plus step 2's pair). That is
+the third independent confirmation since the duplicate daemon was stopped.
+
 ## G. Not in this slice
 
 The real recipe engine · B-Fabric or customer notifications (§9) · QC tiers (§7) ·
