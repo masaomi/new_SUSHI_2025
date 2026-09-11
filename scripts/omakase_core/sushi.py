@@ -29,6 +29,15 @@ JOB_TERMINAL = {JOB_COMPLETED, JOB_FAILED}
 # 30 118 end states, of which OUT_OF_MEMORY 82 and TIMEOUT 5, so this path is real but rare.
 SLURM_TRANSIENT = {"OUT_OF_MEMORY", "TIMEOUT", "NODE_FAIL", "PREEMPTED"}
 
+# A submit is not a quick call. Inside it the backend runs `timeout -k 30 900 g-req -w copy`
+# to move the generated scripts from /scratch to gStore, so the server is willing to wait
+# **900 seconds**. Measured 2026-09-11: a copy that normally finishes in seconds sat for
+# over 11 minutes. A client that gives up sooner than the server does not cancel anything --
+# it just stops watching, and if the copy then succeeds the job exists with nothing in the
+# store pointing at it. So the submit timeout is set past the server's own ceiling, and the
+# wait is the honest cost rather than a silent orphan.
+SUBMIT_TIMEOUT_SECONDS = 960
+
 
 class SushiError(RuntimeError):
     pass
@@ -54,7 +63,8 @@ class SushiClient:
 
     # ------------------------------------------------------------------ transport
 
-    def _call(self, method: str, path: str, body: dict | None = None) -> Any:
+    def _call(self, method: str, path: str, body: dict | None = None,
+              timeout: int | None = None) -> Any:
         url = self.base_url + path
         data = json.dumps(body).encode() if body is not None else None
         req = urllib.request.Request(url, data=data, method=method)
@@ -62,7 +72,7 @@ class SushiClient:
         if data:
             req.add_header("Content-Type", "application/json")
         try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as r:
+            with urllib.request.urlopen(req, timeout=timeout or self.timeout) as r:
                 return json.loads(r.read() or b"null")
         except urllib.error.HTTPError as e:
             detail = e.read().decode("utf-8", "replace")[:400]
@@ -88,7 +98,8 @@ class SushiClient:
         if self.dry_run:
             return {"job_ids": [], "output_dataset_id": None, "dry_run": True,
                     "would_have_sent": payload}
-        res = self._call("POST", "/api/v1/jobs", payload)
+        res = self._call("POST", "/api/v1/jobs", payload,
+                         timeout=SUBMIT_TIMEOUT_SECONDS)
         jobs = res.get("jobs") or ([res["job"]] if res.get("job") else [])
         ids = [int(j["id"]) for j in jobs]
         if not ids:

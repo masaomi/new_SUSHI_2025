@@ -157,6 +157,84 @@ def an_unsubmittable_app_is_refused_before_anything_is_submitted(tmp):
     return "refused before submitting, not discovered from a 422"
 
 
+# ---------------------------------------------------------------- parallel steps
+#
+# The 2026-09-10 meeting drew FastQC, FastqScreen and STAR side by side, then featureCounts
+# after STAR. Until 2026-09-11 the runner submitted one step per tick, so that shape ran
+# strictly serially -- same results, four times the wall clock, and "in parallel" would
+# have been a false claim in a presentation. These three cases pin the new behaviour and,
+# more importantly, pin that the halt guarantee survived it.
+
+FAN_STEPS = [
+    {"seq": 1, "app_name": "FastqcApp", "depends_on_seq": None,
+     "parameters": {"cores": 1}, "retry_parameters": None},
+    {"seq": 2, "app_name": "FastqScreenApp", "depends_on_seq": None,
+     "parameters": {"cores": 2}, "retry_parameters": None},
+    {"seq": 3, "app_name": "STARApp", "depends_on_seq": None,
+     "parameters": {"cores": 8}, "retry_parameters": None},
+    {"seq": 4, "app_name": "FeatureCountsApp", "depends_on_seq": 3,
+     "parameters": {"cores": 8}, "retry_parameters": None},
+]
+
+FAN_APPS = {"Fastqc", "FastqScreen", "STAR", "FeatureCounts"}
+
+
+def build_fan(tmp: Path, name: str):
+    st = S.Store(tmp / f"{name}.sqlite3")
+    cid, created = st.upsert_candidate(42, 9, "fan", "v1", project_number=35611)
+    assert created
+    st.set_steps(cid, FAN_STEPS)
+    st.set_state(cid, S.APPROVED, "test", "approved for the test")
+    return st, cid
+
+
+@case
+def three_independent_steps_go_out_in_one_tick(tmp):
+    st, cid = build_fan(tmp, "fanout")
+    # STAR stays RUNNING so the tick cannot roll on into featureCounts.
+    client = FakeClient({103: ["RUNNING", "RUNNING"]}, applicable=FAN_APPS)
+    R.ChainRunner(st, client, log=lambda m: None).tick(cid)
+    apps = sorted(s["app_name"] for s in client.submits)
+    # sorted() puts FastqScreen first: the 5th character is "S" (83) against "c" (99).
+    assert apps == ["FastqScreen", "Fastqc", "STAR"], apps
+    assert all(s["dataset_id"] == 9 for s in client.submits), client.submits
+    return "3 independent steps submitted in one tick, all reading dataset 9"
+
+
+@case
+def the_dependent_step_waits_for_its_own_parent_not_its_siblings(tmp):
+    st, cid = build_fan(tmp, "fanin")
+    # Fastqc and FastqScreen finish at once; STAR needs a second poll. featureCounts must
+    # not start on the strength of its siblings being done.
+    client = FakeClient({103: ["RUNNING", "COMPLETED"]}, applicable=FAN_APPS)
+    R.is_transient = lambda _sid: (False, "FAILED")
+    run = R.ChainRunner(st, client, log=lambda m: None)
+    run.tick(cid)
+    assert len(client.submits) == 3, client.submits      # STAR still running
+    state = drive(run, cid)
+    assert state == S.DONE, state
+    apps = [s["app_name"] for s in client.submits]
+    assert apps == ["Fastqc", "FastqScreen", "STAR", "FeatureCounts"], apps
+    star, fc = client.submits[2], client.submits[3]
+    # It must read STAR's output, not FastQC's -- the sibling that happened to finish first.
+    assert fc["dataset_id"] == star["output_dataset_id"], (star, fc)
+    return "featureCounts waited for STAR alone, and consumed STAR's output"
+
+
+@case
+def a_failed_sibling_halts_the_chain_and_its_child_is_never_submitted(tmp):
+    st, cid = build_fan(tmp, "fanhalt")
+    client = FakeClient({103: ["FAILED"]}, applicable=FAN_APPS)   # STAR dies
+    R.is_transient = lambda _sid: (False, "FAILED")
+    state = drive(R.ChainRunner(st, client, log=lambda m: None), cid)
+    assert state == S.CHAIN_HALTED, state
+    apps = sorted(s["app_name"] for s in client.submits)
+    # The two siblings were already with the cluster and cannot be recalled. What matters
+    # is that featureCounts is absent.
+    assert apps == ["FastqScreen", "Fastqc", "STAR"], apps
+    return "STAR failed; its siblings ran on, featureCounts was never submitted"
+
+
 @case
 def re_detecting_the_same_order_does_not_start_a_second_pipeline(tmp):
     st = S.Store(tmp / "idem.sqlite3")

@@ -11,8 +11,9 @@ No model is involved anywhere in this file. Per design decision D4 the trigger, 
 every state transition and the retry decision are ordinary code; a model may only word a
 proposal, break a tie between recipes, and narrate QC.
 
-One tick does at most one thing per candidate, so an interrupted run resumes from the
-store rather than from memory.
+One tick polls everything in flight and then submits everything newly ready, so an
+interrupted run resumes from the store rather than from memory. Until 2026-09-11 a tick did
+at most one thing; steps that do not depend on each other now go out together.
 """
 from __future__ import annotations
 
@@ -55,13 +56,56 @@ class ChainRunner:
             raise RuntimeError(f"step {dep} completed but produced no output dataset")
         return int(parent["output_dataset_id"])
 
-    def _next_step(self, candidate_id: int) -> dict | None:
-        """The lowest-numbered step that is not finished. None when the chain is done."""
+    def _ready_steps(self, candidate_id: int) -> list[dict]:
+        """Every step that can be submitted right now, not just the first.
+
+        A step is ready when it is not already finished or in flight, and its dependency —
+        if it has one — has reported `COMPLETED`. Steps with no dependency are all ready at
+        once, which is what lets the 2026-09-10 meeting's shape run as drawn:
+
+            FastQC ┐
+            FastqScreen ┤ all three submitted in the same tick
+            STAR   ┘ ──▶ FeatureCounts, only after STAR reports COMPLETED
+
+        Before 2026-09-11 this returned one step and the chain was strictly serial. The
+        results were identical; only the wall clock differed, and calling it parallel in a
+        presentation would have been untrue.
+
+        **What did not change is the thing that matters.** Readiness is still decided by the
+        dependency's own `COMPLETED`, never by SLURM — `job_manager` hardcodes `afterany`
+        and attaches no dependency at all to a child whose parent already failed, so a
+        chain that trusted SLURM would run the child anyway.
+        """
+        ready = []
         for step in self.st.steps(candidate_id):
             sub = self.st.latest_submission(candidate_id, step["seq"])
-            if sub is None or sub["state"] not in (S.STEP_COMPLETED,):
-                return step
-        return None
+            if sub is not None and sub["state"] not in (S.STEP_PENDING, S.STEP_RETRIED):
+                continue  # completed, failed, or still in flight
+            dep = step.get("depends_on_seq")
+            if dep is not None:
+                parent = self.st.latest_submission(candidate_id, int(dep))
+                if parent is None or parent["state"] != S.STEP_COMPLETED:
+                    continue
+            ready.append(step)
+        return ready
+
+    def _in_flight(self, candidate_id: int) -> list[tuple[dict, Any]]:
+        """(step, submission) for every step whose jobs are with the cluster right now."""
+        out = []
+        for step in self.st.steps(candidate_id):
+            sub = self.st.latest_submission(candidate_id, step["seq"])
+            if sub is not None and sub["state"] in (S.STEP_SUBMITTED, S.STEP_RUNNING):
+                out.append((step, sub))
+        return out
+
+    def _unfinished(self, candidate_id: int) -> list[dict]:
+        """Steps that have not reported COMPLETED. Empty means the chain is done."""
+        out = []
+        for step in self.st.steps(candidate_id):
+            sub = self.st.latest_submission(candidate_id, step["seq"])
+            if sub is None or sub["state"] != S.STEP_COMPLETED:
+                out.append(step)
+        return out
 
     @staticmethod
     def _raise_resources(step: dict, transient_state: str) -> tuple[dict, str]:
@@ -209,20 +253,34 @@ class ChainRunner:
             self.log(f"  candidate {candidate_id} is {state}; nothing to run")
             return state
 
-        step = self._next_step(candidate_id)
-        if step is None:
-            self.st.set_state(candidate_id, S.DONE, ACTOR,
-                              reason="every step COMPLETED")
+        # Poll first, then submit, so a step that completes in this tick can release its
+        # child in the same tick rather than costing a whole poll interval.
+        for step, sub in self._in_flight(candidate_id):
+            self._poll_step(cand, step, sub)
+            if self.st.candidate(candidate_id)["state"] in S.TERMINAL_CANDIDATE_STATES:
+                # A failure halted the chain. Siblings already with the cluster keep
+                # running -- they cannot be recalled -- but nothing further is submitted,
+                # which is the guarantee the whole slice exists for.
+                return self.st.candidate(candidate_id)["state"]
+
+        for step in self._ready_steps(candidate_id):
+            sub = self.st.latest_submission(candidate_id, step["seq"])
+            attempt = (int(sub["attempt"]) + 1) if sub is not None else 1
+            self._submit_step(cand, step, attempt, step["parameters"])
+            if self.st.candidate(candidate_id)["state"] in S.TERMINAL_CANDIDATE_STATES:
+                return self.st.candidate(candidate_id)["state"]
+
+        if not self._unfinished(candidate_id):
+            self.st.set_state(candidate_id, S.DONE, ACTOR, reason="every step COMPLETED")
             self.log(f"  candidate {candidate_id} DONE")
             return S.DONE
 
-        sub = self.st.latest_submission(candidate_id, step["seq"])
-        if sub is None or sub["state"] in (S.STEP_RETRIED, S.STEP_PENDING):
-            attempt = (int(sub["attempt"]) + 1) if sub is not None else 1
-            self._submit_step(cand, step, attempt, step["parameters"])
-        elif sub["state"] in (S.STEP_SUBMITTED, S.STEP_RUNNING):
-            self._poll_step(cand, step, sub)
-        elif sub["state"] == S.STEP_FAILED:
+        # Nothing ready and nothing in flight means a step is FAILED with the chain still
+        # marked RUNNING -- reachable only if a submission was closed outside a poll.
+        if not self._in_flight(candidate_id) and not self._ready_steps(candidate_id):
+            stuck = [s["seq"] for s in self._unfinished(candidate_id)]
             self.st.set_state(candidate_id, S.CHAIN_HALTED, ACTOR,
-                              reason=f"step {step['seq']} is FAILED")
+                              reason=f"step(s) {stuck} can never run: nothing is in flight "
+                                     f"and no dependency will complete")
+            self.log(f"  HALT: step(s) {stuck} can never run")
         return self.st.candidate(candidate_id)["state"]
