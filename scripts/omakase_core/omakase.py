@@ -103,16 +103,34 @@ def cmd_ingest(args, st: S.Store) -> int:
         print(f"candidate {cid}: order {order_id} is in the CONTROL arm — no proposal made")
         return 0
 
-    st.set_steps(cid, recipe["steps"])
+    steps, derived = _resolve_steps(recipe, args)
+    st.set_steps(cid, steps)
     ev = _evidence_for(st, cid, order, args.history)
     st.set_state(cid, S.PROPOSED, actor="omakase-core",
                  reason=f"recipe {recipe['id']}@{recipe['version']}, "
-                        f"{len(recipe['steps'])} steps; {evidence.describe(ev)}")
+                        f"{len(steps)} steps; {evidence.describe(ev)}"
+                        + ("; " + "; ".join(derived) if derived else ""))
     print(f"candidate {cid}: order {order_id}, dataset {args.dataset}, "
           f"recipe {recipe['id']}@{recipe['version']} -> PROPOSED")
+    for note in derived:
+        print(f"  derived: {note}")
     print(f"  evidence: {evidence.describe(ev)}")
     _print_candidate(st, cid)
     return 0
+
+
+def _resolve_steps(recipe: dict, args) -> tuple[list[dict], list[str]]:
+    """Expand the recipe's sentinels against the input dataset, before anyone approves.
+
+    The dataset is only fetched when a sentinel is actually present, so the recipes that
+    need nothing derived — `fastqc_only` — make no network call and keep working on a node
+    that cannot reach the backend.
+    """
+    text = json.dumps(recipe["steps"])
+    if recipes.FROM_SPECIES not in text:
+        return recipe["steps"], []
+    client = SushiClient(args.base_url, token())
+    return recipes.resolve_parameters(recipe["steps"], client.dataset(args.dataset))
 
 
 def _evidence_for(st: S.Store, cid: int, order: dict, history_path) -> dict | None:
@@ -304,6 +322,9 @@ def main() -> int:
                    help="the history audit TSV, for counted evidence")
     p.add_argument("--control-every", type=int, default=0,
                    help="put every Nth order id in the control arm (0 = off)")
+    p.add_argument("--base-url", default=DEFAULT_BASE_URL,
+                   help="only contacted when a recipe derives a value from the dataset, "
+                        "such as refBuild from Species")
     p.set_defaults(fn=cmd_ingest)
 
     p = sub.add_parser("show")

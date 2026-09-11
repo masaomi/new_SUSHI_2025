@@ -5,30 +5,36 @@
 # the backend's submittable set of 18, so the chain is not hypothetical -- it can be
 # submitted today.
 #
-# It is NOT the default recipe and has NOT been run. Two things are missing, and neither
-# is code:
+# ## What changed on 2026-09-11: refBuild is derived, not typed in
 #
-#   1. `refBuild`. STAR needs a reference genome, and the meeting's own point was that it
-#      must be derived from the order metadata rather than typed in. `/srv/GT/reference-
-#      favorite` already is that mapping for five curated species -- never invent a
-#      species-to-build policy -- but wiring it in is the recipe engine's job, not the
-#      runner's.
-#   2. A bioinformatician. By standing decision the real catalog is authored by hand and
-#      never generated. The parameters below are placeholders in the literal sense: they
-#      are what an agent guessed, which is exactly what must not ship.
+# `refBuild: FROM_SPECIES` is a sentinel the recipe engine expands at proposal time by
+# reading the input dataset's `Species` column and looking it up in the curated farm
+# `/srv/GT/reference-favorite` -- five species, exactly one build each, maintained by the
+# genome team. See `omakase_core/reference.py`. The human sees the expanded value before
+# approving, and a dataset with no Species, with two species, or with a species the farm
+# does not carry is **refused at proposal time** rather than aligned against a guess.
 #
-# Left here so the shape is visible and the runner can be pointed at it the moment those
-# two are answered:  --recipe star_then_featurecounts
+# This is the first of the two judgements the meeting named. The second -- EdgeR's
+# control-vs-target grouping -- is still open and deliberately absent below.
+#
+# ## What is still missing, and it is not code
+#
+# A bioinformatician. By standing decision the real catalog is authored by hand and never
+# generated. The `match:` block below is still TODO, so `select()` will never reach this
+# recipe on its own; it runs only when named:  --recipe star_then_featurecounts
+#
+# The non-resource parameters are the app defaults as shipped, which is the most defensible
+# thing an agent can leave behind -- not a tuning nobody reviewed.
 
 id: star_then_featurecounts
-version: v0-draft
+version: v1-derived-refbuild
 description: >
-  Align reads, then count per gene. DRAFT -- parameters are placeholders and refBuild is
-  unresolved. Do not run against anything that matters.
+  Align reads with STAR, then count reads per gene with featureCounts. The reference genome
+  is derived from the dataset's Species column; the chain refuses rather than guesses.
 
-# Deliberately not `always`, so `select()` never picks this by accident. A real match
-# block reads the order's service type and sequencing application; this one matches
-# nothing until someone writes it.
+# Deliberately not `always`, so `select()` never picks this by accident. A real match block
+# reads the order's service type and sequencing application; this one matches nothing until
+# a bioinformatician writes it.
 match:
   service_type: TODO
   sequencing_application: TODO
@@ -39,26 +45,42 @@ steps:
     depends_on_seq: null
     parameters:
       cores: 8
+      # STARApp offers ram ['30','40','60','330'] and its own description says "30/40 GB is
+      # enough for human and mouse data". 30 is the app default, so it is what is asked for.
       ram: 30
       scratch: 100
-      # refBuild: resolved from the order's Species. UNSET on purpose -- a wrong genome is
-      # worse than a refused submission.
+      # Expanded from the dataset's Species before the proposal is shown. A wrong genome is
+      # worse than a refused submission: STAR will align mouse reads to a plant genome and
+      # return a directory full of near-zero counts, which looks like data.
+      refBuild: FROM_SPECIES
+      paired: true
+      strandMode: both
     retry_parameters:
       cores: 8
-      ram: 62
+      # 60, not 62. `ram` is a *selector* on this app, and 62 is not one of the four values
+      # it offers -- asking for it is a submission that cannot be honoured.
+      ram: 60
       scratch: 200
+      refBuild: FROM_SPECIES
+      paired: true
+      strandMode: both
 
   - seq: 2
     app_name: FeatureCountsApp
     depends_on_seq: 1
+    # No refBuild here, and that is not an omission. STAR's output dataset carries the
+    # columns `Species`, `refBuild`, `paired` and `strandMode`, and FeatureCountsApp reads
+    # refBuild off its input dataset unconditionally (`FeatureCountsApp.rb:59`). So the
+    # genome is decided once, at step 1, and travels through the data rather than through
+    # the recipe -- there is no second place for it to drift.
     parameters:
-      cores: 4
-      ram: 15
-      scratch: 50
+      cores: 8
+      ram: 20
+      scratch: 10
     retry_parameters:
-      cores: 4
-      ram: 30
-      scratch: 100
+      cores: 8
+      ram: 40
+      scratch: 20
 
   # CountQC and EdgeR come next in the meeting's example. EdgeR additionally needs to know
   # which samples are controls and which are targets -- the second judgement the meeting

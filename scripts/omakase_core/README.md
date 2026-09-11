@@ -60,8 +60,41 @@ This cost a live 422 to discover and is the trap most likely to bite the next pe
 case in prose. The runner checks the second list before submitting and halts with a reason.
 
 The chain the 2026-09-10 meeting asked for is entirely inside the submittable 18: **STAR,
-FeatureCounts, CountQC, EdgeR.** See `recipes/star_then_featurecounts.yaml`, which is a
-draft and has not been run — it needs `refBuild` resolved from the order's species, and a
+FeatureCounts, CountQC, EdgeR.** See `recipes/star_then_featurecounts.yaml`.
+
+## The genome is derived, and the refusals are the feature
+
+The meeting named two judgements the system must make on its own. The first —
+*STARApp's reference genome, from the metadata rather than typed in* — is implemented in
+`reference.py`, and there was nothing to invent:
+
+```
+dataset's Species column   ->   /srv/GT/reference-favorite   ->   refBuild
+   "Mus musculus"                5 species, 1 build each          Mus_musculus/GENCODE/
+                                 curated by the genome team       GRCm39/Annotation/
+                                 (the same list SUSHI's own       Release_M37-2025-07-03
+                                  refBuild dropdown shows first)
+```
+
+A recipe writes `refBuild: FROM_SPECIES`; the engine expands it **at proposal time**, so
+the human approving sees the real path, not the sentinel. Approving a placeholder would
+make the approval meaningless.
+
+Four cases are refused rather than defaulted, and they are not rare: **39.2 %** of
+delivered datasets carry `NA` / blank Species and **5.7 %** carry more than one (measured
+2026-08-21 over 1376 raw datasets). A species outside the curated five is a request to the
+genome team, not a path this code may construct. A wrong genome is worse than a refused
+submission — STAR will align mouse reads to a plant genome and hand back a directory of
+near-zero counts, which looks like data.
+
+Step 2 sets no `refBuild` and that is deliberate. STAR's output dataset carries the columns
+`Species`, `refBuild`, `paired` and `strandMode`, and `FeatureCountsApp.rb:59` reads
+`refBuild` off its input dataset unconditionally. The genome is decided once and travels
+**through the data**, so there is no second copy to drift.
+
+The second judgement — EdgeR's control-vs-target grouping — is still open and deliberately
+absent. The `match:` block is still `TODO`, so `select()` never reaches this recipe on its
+own; it runs only when named with `--recipe star_then_featurecounts`. That still needs a
 bioinformatician.
 
 ## Retry
@@ -83,13 +116,24 @@ Grounding: of 30 118 SLURM end states since 2026-09-01, 82 were `OUT_OF_MEMORY` 
 
 ```bash
 python3 omakase_core/test_runner.py     # rc 0 = the runner behaves as the delta says
+python3 omakase_core/test_reference.py  # rc 0 = the genome refusals still refuse
+python3 omakase_core/test_gate.py       # rc 0 = the pre-registered gate is untouched
 ```
 
 Six cases against a fake backend, because the one that matters cannot be produced on demand
 against a cluster: **a step fails for a non-transient reason and the next step is never
 submitted.** That is what `afterany` gets wrong, and it is why the runner exists.
 
+`test_reference.py` is 17 cases against a fixture farm, and most of them are refusals. The
+happy path is a dictionary lookup and cannot really break; what can break is a refusal
+quietly becoming a default.
+
 ## Not in this slice
 
 The real recipe engine · resolving a SUSHI dataset from a B-Fabric order · notifications ·
 QC tiers · the LLM path · the auto-approval clock · anything at all on fgcz-h-082.
+
+Measured 2026-09-11 while closing the chain: `GET /api/v1/datasets/:id` **does** return a
+top-level `order_id` (9 → 35755), but `?order_id=` and `?bfabric_order_id=` on the project
+datasets route are **ignored** — both returned the unfiltered 50. So order → dataset is a
+client-side scan of a project's datasets, not a server-side filter. Recorded, not built.
