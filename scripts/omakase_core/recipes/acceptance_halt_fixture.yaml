@@ -1,0 +1,62 @@
+# NOT A RECIPE. A deliberately broken two-step chain, kept so the acceptance criterion of
+# `docs/omakase-prototype-design-delta.md` §F can be demonstrated against the real cluster:
+#
+#   "A deliberately failed first step must leave the chain in CHAIN_HALTED with the second
+#    step never submitted -- that is the case `afterany` gets wrong."
+#
+# `test_runner.py` already proves this against a fake backend. It cannot prove it against
+# SLURM, because a real failure cannot be produced on demand -- so one is produced here on
+# purpose.
+#
+# ## How the failure is produced, and why this way
+#
+# `refBuild` below points at a directory that does not exist. The backend permits
+# `parameters` as a free-form hash (`jobs_controller.rb:267` -- `parameters: {}`) and does
+# not check values against the app's selector, so the job is accepted, reaches SLURM, and
+# ezRun fails on the missing genome within seconds. SLURM records `FAILED`, which is NOT in
+# the runner's transient set (`OUT_OF_MEMORY`, `TIMEOUT`, `NODE_FAIL`, `PREEMPTED`), so
+# there is no retry and the chain halts.
+#
+# Alternatives rejected: an unsubmittable app name halts at the allow-list check before
+# anything is submitted, which is a *different* code path and proves nothing about SLURM;
+# a too-small `scratch` is not reliably fatal for a 100 000-read dataset.
+#
+# The genome is written out in full rather than derived, because the whole point is a value
+# that cannot be derived. `reference.py` would refuse this, correctly.
+#
+#   python3 -m omakase_core.omakase ingest --recipe acceptance_halt_fixture --dataset 9 ...
+#
+# Expected end state: candidate CHAIN_HALTED, step 2 with no submission row at all.
+
+id: acceptance_halt_fixture
+version: v1
+description: >
+  FIXTURE, NOT A RECIPE. Step 1 is aimed at a genome that does not exist so that it fails
+  in SLURM, proving live that step 2 is never submitted. Never select this for real data.
+
+# No `always`, so `select()` can never reach it. It runs only when named.
+match:
+  never: true
+
+steps:
+  - seq: 1
+    app_name: STARApp
+    depends_on_seq: null
+    parameters:
+      cores: 8
+      ram: 30
+      scratch: 100
+      refBuild: Mus_musculus/GENCODE/GRCm39/Annotation/Release_THIS_BUILD_DOES_NOT_EXIST
+      paired: true
+      strandMode: both
+    # No retry_parameters on purpose. A FAILED SLURM state is not transient, so the runner
+    # must halt on the first failure; declaring a retry here would hide it if that rule
+    # ever broke.
+
+  - seq: 2
+    app_name: FeatureCountsApp
+    depends_on_seq: 1
+    parameters:
+      cores: 8
+      ram: 20
+      scratch: 10
