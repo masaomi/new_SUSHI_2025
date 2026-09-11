@@ -209,6 +209,32 @@ reads them. Verified on 856.
 submissions (810→377077, 811→377078, 814→377097, 815→377098, plus step 2's pair). That is
 the third independent confirmation since the duplicate daemon was stopped.
 
+### The meeting's shape, run in parallel — 2026-09-11 15:49–15:55
+
+`recipes/rnaseq_meeting_shape.yaml`, candidate 2, **DONE in 6 min 31 s**.
+
+| step | SLURM | started | elapsed |
+|---|---|---|---|
+| 1 FastQC | 377297 | 15:49:24 | 5:28 |
+| 2 FastqScreen | 377298 | 15:49:44 | 3:20 |
+| 3 STAR ×2 | 377300/377301 | 15:50:05 | 1:38 / 1:56 |
+| 4 FeatureCounts ×2 | 377306/377307 | 15:52:55 | 1:29 / 1:24 |
+
+Steps 1–3 started within **41 seconds** of each other. FeatureCounts went out **22 s after
+STAR reported COMPLETED**, while FastQC and FastqScreen were still running — the dependent
+step waits for its own parent, not for its siblings.
+
+The saving is not merely arithmetic. The compute sums to **12 min 13 s** if run one at a
+time, and the longest job — FastQC at 5:28 — is a **leaf that nothing depends on**. Serially
+it delays everything; in parallel it delays nothing, and the chain's critical path is
+STAR → FeatureCounts at 3 min 25 s.
+
+**CountQC was step 5 and was removed**, with the reason measured rather than assumed: it
+read its inputs correctly and then failed inside the Quarto report on **2 samples**,
+producing no report, where the same app on a **6-sample** dataset succeeded on 2026-08-06.
+`CountQCApp.rb` has no sample-count guard, so nothing says so. A pre-existing defect in the
+app, recorded and deferred — the chain machinery was unaffected and halted with a reason.
+
 ## G. Not in this slice
 
 The real recipe engine · B-Fabric or customer notifications (§9) · QC tiers (§7) ·
