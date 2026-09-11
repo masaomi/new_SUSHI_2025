@@ -35,7 +35,7 @@ if __package__ in (None, ""):  # allow `python omakase.py` as well as `-m`
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     __package__ = "omakase_core"
 
-from . import evidence, gate, recipes, store as S  # noqa: E402
+from . import evidence, gate, input_dataset, recipes, reference, store as S  # noqa: E402
 from .runner import ChainRunner             # noqa: E402
 from .sushi import SushiClient              # noqa: E402
 
@@ -73,6 +73,7 @@ def cmd_ingest(args, st: S.Store) -> int:
     event = json.load(Path(args.event).open(encoding="utf-8"))
     order = event.get("order") or {}
     order_id = int(order["id"])
+    dataset_id, found_by = _resolve_dataset(args, order)
 
     recipe = recipes.select(order, args.recipe)
     # Deterministic, not random: the same order always lands in the same arm, so a rerun
@@ -82,7 +83,7 @@ def cmd_ingest(args, st: S.Store) -> int:
            else S.ARM_PROPOSE)
     cid, created = st.upsert_candidate(
         order_id=order_id,
-        input_dataset_id=args.dataset,
+        input_dataset_id=dataset_id,
         recipe_id=recipe["id"],
         recipe_version=str(recipe["version"]),
         project_number=(order.get("project") or {}).get("id"),
@@ -90,7 +91,7 @@ def cmd_ingest(args, st: S.Store) -> int:
     )
     if not created:
         print(f"candidate {cid} already exists for order {order_id} / dataset "
-              f"{args.dataset} / {recipe['id']}@{recipe['version']} — nothing to do")
+              f"{dataset_id} / {recipe['id']}@{recipe['version']} — nothing to do")
         return 0
 
     st.set_order_params(cid, {k: order.get(k) for k in KEPT_ORDER_FIELDS if k in order})
@@ -103,15 +104,16 @@ def cmd_ingest(args, st: S.Store) -> int:
         print(f"candidate {cid}: order {order_id} is in the CONTROL arm — no proposal made")
         return 0
 
-    steps, derived = _resolve_steps(recipe, args)
+    steps, derived = _resolve_steps(recipe, args, dataset_id)
     st.set_steps(cid, steps)
     ev = _evidence_for(st, cid, order, args.history)
     st.set_state(cid, S.PROPOSED, actor="omakase-core",
                  reason=f"recipe {recipe['id']}@{recipe['version']}, "
                         f"{len(steps)} steps; {evidence.describe(ev)}"
                         + ("; " + "; ".join(derived) if derived else ""))
-    print(f"candidate {cid}: order {order_id}, dataset {args.dataset}, "
+    print(f"candidate {cid}: order {order_id}, dataset {dataset_id}, "
           f"recipe {recipe['id']}@{recipe['version']} -> PROPOSED")
+    print(f"  input:    {found_by}")
     for note in derived:
         print(f"  derived: {note}")
     print(f"  evidence: {evidence.describe(ev)}")
@@ -119,7 +121,20 @@ def cmd_ingest(args, st: S.Store) -> int:
     return 0
 
 
-def _resolve_steps(recipe: dict, args) -> tuple[list[dict], list[str]]:
+def _resolve_dataset(args, order: dict) -> tuple[int, str]:
+    """The SUSHI dataset this order's data lives in. Explicit wins; otherwise search.
+
+    `--dataset` is kept, and not only as a fallback: when an order resolves to more than
+    one raw dataset the answer is genuinely a human's, and there has to be a way to give it.
+    """
+    if args.dataset:
+        return int(args.dataset), f"named on the command line (--dataset {args.dataset})"
+    client = SushiClient(args.base_url, token())
+    project = (order.get("project") or {}).get("id")
+    return input_dataset.resolve(client, project, int(order["id"]))
+
+
+def _resolve_steps(recipe: dict, args, dataset_id: int) -> tuple[list[dict], list[str]]:
     """Expand the recipe's sentinels against the input dataset, before anyone approves.
 
     The dataset is only fetched when a sentinel is actually present, so the recipes that
@@ -130,7 +145,7 @@ def _resolve_steps(recipe: dict, args) -> tuple[list[dict], list[str]]:
     if recipes.FROM_SPECIES not in text:
         return recipe["steps"], []
     client = SushiClient(args.base_url, token())
-    return recipes.resolve_parameters(recipe["steps"], client.dataset(args.dataset))
+    return recipes.resolve_parameters(recipe["steps"], client.dataset(dataset_id))
 
 
 def _evidence_for(st: S.Store, cid: int, order: dict, history_path) -> dict | None:
@@ -314,9 +329,10 @@ def main() -> int:
 
     p = sub.add_parser("ingest", help="turn an order event into a proposed candidate")
     p.add_argument("--event", required=True, help="a JSON file from omakase_order_watch")
-    p.add_argument("--dataset", type=int, required=True,
-                   help="the SUSHI input dataset id. Resolving it from the order is not "
-                        "in this slice, so it is given explicitly")
+    p.add_argument("--dataset", type=int, default=None,
+                   help="the SUSHI input dataset id. Optional since 2026-09-11: when it is "
+                        "left out, the order is resolved to the one parentless dataset in "
+                        "its project carrying that order id, and refuses on 0 or many")
     p.add_argument("--recipe", default=None)
     p.add_argument("--history", type=Path, default=DEFAULT_HISTORY,
                    help="the history audit TSV, for counted evidence")
@@ -376,6 +392,14 @@ def main() -> int:
     st = S.Store(args.store)
     try:
         return args.fn(args, st)
+    except (input_dataset.InputDatasetError, reference.ReferenceError,
+            recipes.RecipeError) as exc:
+        # These are refusals, not crashes. An order whose data is not registered yet, a
+        # dataset with no Species, a recipe that matches nothing -- all of them are the
+        # system declining to proceed on purpose, and a traceback would read as a defect
+        # to anyone watching. rc 3 so a caller can tell "declined" from "failed" (2).
+        print(f"\nDECLINED: {exc}", file=sys.stderr)
+        return 3
     finally:
         st.close()
 

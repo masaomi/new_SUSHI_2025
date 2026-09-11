@@ -37,9 +37,41 @@ python3 -m omakase_core.omakase run     --candidate 1 --dry-run
 python3 -m omakase_core.omakase run     --candidate 1
 ```
 
-`--dataset` is explicit: resolving the SUSHI input dataset from a B-Fabric order is not in
-this slice. Approval is explicit and human every time; the deadline-driven auto-approval of
-v0.3 §10 is deliberately absent.
+`--dataset` is **optional since 2026-09-11**. Left out, the order is resolved to the one
+parentless dataset in its project carrying that order id — see below. Given, it wins, which
+is not only a fallback: when an order resolves to several raw datasets, which one to
+analyse is genuinely a person's call.
+
+Approval is explicit and human every time; the deadline-driven auto-approval of v0.3 §10 is
+deliberately absent.
+
+## order → dataset, and why the key is what it is
+
+The link is not held by B-Fabric. `data_sets.order_id` is derived inside SUSHI from the
+dataset's own `Order Id [B-Fabric]` sample column, and only when every sample agrees on one
+order (`backend/app/models/data_set.rb:58-77`).
+
+Measured on project 35611, all 82 datasets opened in 2.6 s:
+
+| population | count | |
+|---|---|---|
+| datasets in the project | 82 | one list call; the summary does **not** carry `order_id` |
+| carrying the **column** for order 35755 | 62 | every descendant of dataset 9 inherits it |
+| carrying the scalar **`order_id`** | 3 | 9, 559, 682 |
+| of those, **parentless** | **1** | dataset 9 — the raw delivered data |
+
+Both halves of the key matter. Match the column instead and you get 62 candidates; drop the
+parent test and you get 3, two of which are themselves analysis output — and analysing an
+analysis is exactly the wrong answer.
+
+Opening only the parentless datasets is also what makes it cheap: 7 detail calls here, not
+82, at ~53 KB and ~29 ms each. There is no server-side filter — `?order_id=` is silently
+ignored — though the column *is* indexed (`schema.rb:50`), so adding one is small if it ever
+needs to scale.
+
+**Refusing is the common case, not an error.** An order that has just reached `processed`
+usually has no registered dataset yet. That prints `DECLINED: …` and exits **3**, so a
+caller can tell "declined" from "failed" (2).
 
 Store defaults to `~/.omakase/omakase.sqlite3`. Tables are v0.3 §12 — `candidates`,
 `order_params`, `proposal_steps`, `transitions`, `submissions` — with two additions the
@@ -115,9 +147,10 @@ Grounding: of 30 118 SLURM end states since 2026-09-01, 82 were `OUT_OF_MEMORY` 
 ## Tests
 
 ```bash
-python3 omakase_core/test_runner.py     # rc 0 = the runner behaves as the delta says
-python3 omakase_core/test_reference.py  # rc 0 = the genome refusals still refuse
-python3 omakase_core/test_gate.py       # rc 0 = the pre-registered gate is untouched
+python3 omakase_core/test_runner.py         # rc 0 = the runner behaves as the delta says
+python3 omakase_core/test_reference.py      # rc 0 = the genome refusals still refuse
+python3 omakase_core/test_input_dataset.py  # rc 0 = order -> dataset still refuses
+python3 omakase_core/test_gate.py           # rc 0 = the pre-registered gate is untouched
 ```
 
 Six cases against a fake backend, because the one that matters cannot be produced on demand
@@ -135,10 +168,9 @@ quietly becoming a default.
 
 ## Not in this slice
 
-The real recipe engine · resolving a SUSHI dataset from a B-Fabric order · notifications ·
-QC tiers · the LLM path · the auto-approval clock · anything at all on fgcz-h-082.
+The real recipe engine · notifications · QC tiers · the LLM path · the auto-approval
+clock · anything at all on fgcz-h-082.
 
-Measured 2026-09-11 while closing the chain: `GET /api/v1/datasets/:id` **does** return a
-top-level `order_id` (9 → 35755), but `?order_id=` and `?bfabric_order_id=` on the project
-datasets route are **ignored** — both returned the unfiltered 50. So order → dataset is a
-client-side scan of a project's datasets, not a server-side filter. Recorded, not built.
+Also not here: a dataset spanning **two** orders. `check_order_ids` leaves the scalar null
+in that case and fills an `order_ids` array instead, and the REST API does not expose that
+array — so such a dataset cannot be found by order. Recorded, not worked around.

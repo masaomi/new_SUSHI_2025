@@ -130,6 +130,18 @@ class SushiClient:
     def dataset(self, dataset_id: int) -> dict:
         return self._call("GET", f"/api/v1/datasets/{dataset_id}")
 
+    def project_datasets(self, project_number: int, per: int = 200) -> list[dict]:
+        """The project's datasets, as summaries. Cheap, and deliberately not the detail.
+
+        Measured 2026-09-11 on project 35611: 82 datasets in one call. The summary carries
+        11 fields -- `id`, `name`, `parent_id`, `bfabric_id`, `sushi_app_name`,
+        `samples_count`, `completed_samples`, `children_ids`, `project_number`,
+        `user_login`, `created_at` -- and **not** `order_id`. So an order lookup has to open
+        each candidate; see `input_dataset.py` for why only the parentless ones are opened.
+        """
+        d = self._call("GET", f"/api/v1/projects/{project_number}/datasets?per={per}")
+        return d.get("datasets", d) if isinstance(d, dict) else d
+
 
 # --------------------------------------------------------------------------- SLURM
 
