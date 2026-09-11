@@ -154,13 +154,27 @@ class ChainRunner:
 
         name = (f"omakase_c{candidate_id}_s{step['seq']}_{step['app_name']}"
                 f"{'_retry' + str(attempt - 1) if attempt > 1 else ''}")
-        res = self.client.submit(
-            dataset_id=dataset_id,
-            app_name=app,
-            parameters=params,
-            next_dataset_name=name,
-            next_dataset_comment=f"OMAKASE candidate {candidate_id} step {step['seq']}",
-        )
+        try:
+            res = self.client.submit(
+                dataset_id=dataset_id,
+                app_name=app,
+                parameters=params,
+                next_dataset_name=name,
+                next_dataset_comment=f"OMAKASE candidate {candidate_id} step {step['seq']}",
+            )
+        except SushiError as exc:
+            # The submit was refused or never completed. Measured 2026-09-11: with the
+            # gStore copy queue stalled site-wide, the backend waited its full 900 s on
+            # `g-req -w copy` and then answered **422, creating no job** -- so there is
+            # nothing running and nothing to reconcile, and the honest move is to stop and
+            # say why. Deliberately not retried: the retry rule is "transient by SLURM's own
+            # report", and this never reached SLURM. A human re-runs once the cause is gone.
+            self.st.set_state(candidate_id, S.CHAIN_HALTED, ACTOR,
+                              reason=f"step {step['seq']} ({app}) could not be submitted: "
+                                     f"{exc}",
+                              payload={"step_seq": step["seq"], "app": app})
+            self.log(f"  HALT: step {step['seq']} {app} could not be submitted: {exc}")
+            return
         if res.get("dry_run"):
             self.log(f"  DRY RUN step {step['seq']} {step['app_name']} on dataset "
                      f"{dataset_id}, params {json.dumps(params, sort_keys=True)}")

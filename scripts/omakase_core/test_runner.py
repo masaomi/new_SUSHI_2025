@@ -236,6 +236,28 @@ def a_failed_sibling_halts_the_chain_and_its_child_is_never_submitted(tmp):
 
 
 @case
+def a_refused_submit_halts_with_a_reason_instead_of_crashing(tmp):
+    """Measured on 2026-09-11: the gStore copy queue stalled site-wide, the backend waited
+    its full 900 s on `g-req -w copy` and answered 422 having created no job. Before this
+    case the runner let the error escape and the operator saw a traceback."""
+    st, cid = build(tmp, "refused")
+
+    class Refusing(FakeClient):
+        def submit(self, *a, **kw):
+            raise R.SushiError("POST /api/v1/jobs -> HTTP 422: copy command failed "
+                               "(timed out after 900s)")
+
+    client = Refusing({})
+    state = drive(R.ChainRunner(st, client, log=lambda m: None), cid)
+    assert state == S.CHAIN_HALTED, state
+    assert client.submits == [], client.submits
+    why = [t["reason"] for t in st.transitions(cid) if t["to_state"] == S.CHAIN_HALTED]
+    assert why and "could not be submitted" in why[0], why
+    assert "422" in why[0], why          # the operator needs the actual answer, not a code
+    return "a refused submit halts with the backend's own reason, and nothing is submitted"
+
+
+@case
 def re_detecting_the_same_order_does_not_start_a_second_pipeline(tmp):
     st = S.Store(tmp / "idem.sqlite3")
     a, created_a = st.upsert_candidate(42, 9, "flash_then_fastqc", "v1")
